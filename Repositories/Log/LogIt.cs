@@ -2,6 +2,7 @@
 using System.Linq;
 using System.Data;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Http;
 using Dapper;
 using Repositories.SqlServer;
 using System.Threading.Tasks;
@@ -15,10 +16,10 @@ namespace Repositories.Log
     {
         public string Appname = "FoodAppLogIt";
         public string ErrorLogPath = "ErrorLog";
-        private readonly IHostingEnvironment _hostingEnvironment;
+        private readonly IWebHostEnvironment _hostingEnvironment;
         private readonly ILogRepository _repo;
         
-        public LogIt(ILogRepository repo, IHostingEnvironment hostingEnvironment)
+        public LogIt(ILogRepository repo, IWebHostEnvironment hostingEnvironment)
         {
             _hostingEnvironment = hostingEnvironment;
             _repo = repo;
@@ -335,9 +336,9 @@ namespace Repositories.Log
     {
         public string Appname = "FoodAppLogIt";
         public string ErrorLogPath = "ErrorLog";
-        private readonly IHostingEnvironment _hostingEnvironment;
+        private readonly IWebHostEnvironment _hostingEnvironment;
 
-        public FLogIt(IHostingEnvironment hostingEnvironment)
+        public FLogIt(IWebHostEnvironment hostingEnvironment)
         {
             _hostingEnvironment = hostingEnvironment;
            // _repo = repo;

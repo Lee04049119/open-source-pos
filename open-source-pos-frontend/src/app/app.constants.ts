@@ -45,7 +45,7 @@ export class Configuration {
         this.ImageServerUrl = 'http://localhost:9096/';
       }
       else {
-        this.WebApi = `https://localhost:44333/api`; // for debuging local
+        this.WebApi = `https://localhost:5001/api`; // for debuging local - updated to .NET 8.0 default port
         this.ImageServerUrl = 'http://localhost:9096/';
       }
 
