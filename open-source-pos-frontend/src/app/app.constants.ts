@@ -32,16 +32,16 @@ export class Configuration {
     if (domain === 'open-source-pos.alishah.pro') {
       let protocal: string = this.window.location.protocol;
       
-      this.WebApi = `${protocal}//open-source-pos.alishah.pro/api/api`;
-      this.ImageServerUrl = 'https://open-source-pos.alishah.pro/api/api/';
+      this.WebApi = `${protocal}//open-source-pos.alishah.pro/api`;
+      this.ImageServerUrl = 'https://open-source-pos.alishah.pro/api/';
     }
     else if (domain === 'localhost') {
       if (window.location.port === '82') { // for spain server
-        this.WebApi = `http://localhost:82/api/api`;
+        this.WebApi = `http://localhost:82/api`;
         this.ImageServerUrl = 'http://localhost:9096/';
       }
       else if (window.location.port === '') { // for alishan pc
-        this.WebApi = `http://localhost/api/api`;
+        this.WebApi = `http://localhost/api`;
         this.ImageServerUrl = 'http://localhost:9096/';
       }
       else {
@@ -51,8 +51,10 @@ export class Configuration {
 
     }
     else {
+        // For IP addresses (like 192.168.0.4) or other domains
         let protocal: string = this.window.location.protocol;
-        this.WebApi = `${protocal}//${domain}:${window.location.port}/api/api`;
+        this.WebApi = `${protocal}//${domain}:5000/api`;
+        this.ImageServerUrl = `${protocal}//${domain}:9096/`;
     }
 
 

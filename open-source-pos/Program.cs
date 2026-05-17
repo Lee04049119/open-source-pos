@@ -82,19 +82,16 @@ namespace open_source_pos
                 options.AddPolicy("AllowAll", builder =>
                 {
                     builder
-                        .SetIsOriginAllowed(_ => true)
+                        .WithOrigins(
+                               "http://localhost:4200",
+                               "http://127.0.0.1:4200",
+                               "http://192.168.0.4:4200" // 🔥 your PC IP
+                                        )
                         .AllowAnyMethod()
                         .AllowAnyHeader()
                         .AllowCredentials();
                 });
-                options.AddPolicy("corsGlobalPolicy", builder =>
-                {
-                    builder
-                        .SetIsOriginAllowed(_ => true)
-                        .AllowAnyMethod()
-                        .AllowAnyHeader()
-                        .AllowCredentials();
-                });
+                
             });
 
             // Configure JSON options
