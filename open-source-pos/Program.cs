@@ -14,6 +14,7 @@ using Repositories.SqlServer;
 using Repositories.Log;
 using Repositories.Common;
 using Models;
+using System.Reflection.Metadata.Ecma335;
 
 namespace open_source_pos
 {
@@ -82,11 +83,13 @@ namespace open_source_pos
                 options.AddPolicy("AllowAll", builder =>
                 {
                     builder
-                        .WithOrigins(
-                               "http://localhost:4200",
-                               "http://127.0.0.1:4200",
-                               "http://192.168.0.4:4200" // 🔥 your PC IP
-                                        )
+                        .SetIsOriginAllowed(origin =>
+                             {  
+                                return 
+                                 origin.StartsWith("http://192.168.0.") && origin.EndsWith(":4200")
+                                 ||origin == "http://localhost:4200";
+                                 
+                              })
                         .AllowAnyMethod()
                         .AllowAnyHeader()
                         .AllowCredentials();
