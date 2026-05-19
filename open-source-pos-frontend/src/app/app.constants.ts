@@ -66,11 +66,11 @@ export class Configuration {
     }
     else if (domain === 'localhost') {
       if (port === '82') { // for spain server
-        this.WebApi = `http://localhost:82/api/api`;
+        this.WebApi = `http://localhost:82/api`;
         this.ImageServerUrl = 'http://localhost:9096/';
       }
       else if (port === '') { // for alishan pc
-        this.WebApi = `http://localhost/api/api`;
+        this.WebApi = `http://localhost/api`;
         this.ImageServerUrl = 'http://localhost:9096/';
       }
       else {
@@ -81,7 +81,7 @@ export class Configuration {
     }
     else {
         
-        this.WebApi = `${protocol}//${domain}:${port}/api/api`;
+        this.WebApi = `${protocol}//${domain}:${port}/api`;
         this.ImageServerUrl = `${protocol}//${domain}:9096/`;
     }
 
