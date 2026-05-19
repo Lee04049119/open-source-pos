@@ -19,21 +19,20 @@ import { posItem, POS } from '../../models/posTrans';
   providedIn: 'root'
 })
 export class ItemService {
-  apiUrl: string ;
+  
     
     
   headers = new HttpHeaders().set('Content-Type', 'application/json');
 
   //4. Passsing the Http dependency to the constructor to access Http functions
   constructor(private http: HttpClient, private _configuration: Configuration, private _utilService: UtilService, 
-    private _authService: AuthService) {
-      this.apiUrl = _configuration.WebApi;
-      this.apiUrl = `${this.apiUrl}/item`;
-    }
-  
+    private _authService: AuthService){}
+    private getApiUrl(): string {
+    return `${this._configuration.WebApi}/item`;
+  }
   GetItems(data: any): Observable<any> {
     debugger;
-    let API_URL = `${this.apiUrl}/getitems`;
+    let API_URL = `${this.getApiUrl()}/getitems`;
     return this.http.post(API_URL, data, { headers: this._authService.GetHttpHeaders() })
       .pipe(
         catchError(this.error) //this._utilService.handleError
@@ -42,20 +41,20 @@ export class ItemService {
 
   SaveItem(data:posItem): Observable<any> {    
     debugger;
-    return this.http.post(this.apiUrl, data, { headers: this._authService.GetHttpHeaders() })
+    return this.http.post(this.getApiUrl(), data, { headers: this._authService.GetHttpHeaders() })
       .pipe(
         catchError(this.error)  //this._utilService.handleError
       )
   }
   
   UpdateItem(data:posItem): Observable<any> {
-    return this.http.put(this.apiUrl, data, { headers: this._authService.GetHttpHeaders() }).pipe(
+    return this.http.put(this.getApiUrl(), data, { headers: this._authService.GetHttpHeaders() }).pipe(
       catchError(this.error)
     )      
   }
       // Delete
     deleteTask(id: any): Observable<any> {
-      var API_URL = `${this.apiUrl}/delete-task/${id}`;
+      var API_URL = `${this.getApiUrl}/delete-task/${id}`;
       return this.http.delete(API_URL).pipe(
         catchError(this.error) //this._utilService.handleError
       )

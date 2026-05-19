@@ -18,19 +18,16 @@ import { POS } from '../../models/posTrans';
   providedIn: 'root'
 })
 export class AuthService {
-
-
-    
-    apiUrl: string ;
-    
-    
+        
     headers = new HttpHeaders().set('Content-Type', 'application/json');
 
     //4. Passsing the Http dependency to the constructor to access Http functions
     constructor(private http: HttpClient, private _configuration: Configuration, private _utilService: UtilService, ) {
-       this.apiUrl = _configuration.WebApi;
+       
     }
-
+  private getApiUrl(): string {
+    return this._configuration.WebApi;
+  }
   /**
    * Used to get user from token provided from asp.net form.
    * @param data data.Token is the required token
@@ -41,7 +38,7 @@ export class AuthService {
     this.headers = this.headers.append('Authorization', `Bearer ${data.Token}`);
 
 
-    let API_URL = `${this.apiUrl}/User/GetCurrentUser`;
+    let API_URL = `${this.getApiUrl()}/User/GetCurrentUser`;
     return this.http.post(API_URL, data, { headers: this.headers })
       .pipe(
         catchError(this.error)
@@ -68,7 +65,7 @@ export class AuthService {
 
 
   GetSearchItems(data: any): Observable<any> {
-      let API_URL = `${this.apiUrl}/POS/GetSearchItems`;
+      let API_URL = `${this.getApiUrl()}/POS/GetSearchItems`;
       return this.http.post(API_URL, data)
         .pipe(
           catchError(this.error)
@@ -76,7 +73,7 @@ export class AuthService {
     }
   
     SavePosTrans(data:POS): Observable<any> {
-      let API_URL = `${this.apiUrl}/POS`;
+      let API_URL = `${this.getApiUrl()}/POS`;
       return this.http.post(API_URL, data)
         .pipe(
           catchError(this.error)
@@ -84,14 +81,14 @@ export class AuthService {
     }
     
     UpdatePosTrans(data:POS): Observable<any> {
-      let API_URL = `${this.apiUrl}/POS`;
+      let API_URL = `${this.getApiUrl()}/POS`;
       return this.http.put(API_URL, data, { headers: this.headers }).pipe(
         catchError(this.error)
       )      
     }
     // Create
     createTask(data: any): Observable<any> {
-      let API_URL = `${this.apiUrl}/create-task`;
+      let API_URL = `${this.getApiUrl()}/create-task`;
       return this.http.post(API_URL, data)
         .pipe(
           catchError(this.error)
@@ -100,12 +97,12 @@ export class AuthService {
   
     // Read
     showTasks() {
-      return this.http.get(`${this.apiUrl}`);
+      return this.http.get(`${this.getApiUrl()}`);
     }
   
     // Update
     updateTask(id: any, data: any): Observable<any> {
-      let API_URL = `${this.apiUrl}/update-task/${id}`;
+      let API_URL = `${this.getApiUrl()}/update-task/${id}`;
       return this.http.put(API_URL, data, { headers: this.headers }).pipe(
         catchError(this.error)
       )
@@ -113,7 +110,7 @@ export class AuthService {
   
     // Delete
     deleteTask(id: any): Observable<any> {
-      var API_URL = `${this.apiUrl}/delete-task/${id}`;
+      var API_URL = `${this.getApiUrl()}/delete-task/${id}`;
       return this.http.delete(API_URL).pipe(
         catchError(this.error)
       )

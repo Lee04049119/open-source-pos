@@ -22,7 +22,7 @@ export class PosService {
 
 
     
-    apiUrl: string ;
+   
     
     
     headers = new HttpHeaders().set('Content-Type', 'application/json');
@@ -30,11 +30,14 @@ export class PosService {
     //4. Passsing the Http dependency to the constructor to access Http functions
   constructor(private http: HttpClient, private _configuration: Configuration, private _utilService: UtilService, 
     private _authService: AuthService) {
-       this.apiUrl = _configuration.WebApi;
+       
     }
+    private getApiUrl(): string {
+    return this._configuration.WebApi;
+  }
 
     GetSearchItems(data: any): Observable<any> {
-      let API_URL = `${this.apiUrl}/POS/GetSearchItems`;
+      let API_URL = `${this.getApiUrl()}/POS/GetSearchItems`;
       return this.http.post(API_URL, data, { headers: this._authService.GetHttpHeaders() })
         .pipe(
           catchError(this._utilService.handleError)
@@ -42,7 +45,7 @@ export class PosService {
     }
 
     GetInvoicesList(data: any): Observable<any> {
-      let API_URL = `${this.apiUrl}/POS/getinvoices`;
+      let API_URL = `${this.getApiUrl()}/POS/getinvoices`;
       return this.http.post(API_URL, data, { headers: this._authService.GetHttpHeaders() })
         .pipe(
           catchError(this._utilService.handleError)
@@ -50,7 +53,7 @@ export class PosService {
     }
   
     SavePosTrans(data:POS): Observable<any> {
-      let API_URL = `${this.apiUrl}/POS`;
+      let API_URL = `${this.getApiUrl()}/POS`;
       return this.http.post(API_URL, data, { headers: this._authService.GetHttpHeaders() })
         .pipe(
           catchError(this._utilService.handleError)
@@ -58,14 +61,14 @@ export class PosService {
     }
     
     UpdatePosTrans(data:POS): Observable<any> {
-      let API_URL = `${this.apiUrl}/POS`;
+      let API_URL = `${this.getApiUrl()}/POS`;
       return this.http.put(API_URL, data, { headers: this._authService.GetHttpHeaders() }).pipe(
         catchError(this._utilService.handleError)
       )      
     }
     
     DeleteInvDetail(data:InvoiceDetailItems): Observable<any> {
-      let API_URL = `${this.apiUrl}/POS/DeleteInvDetail`;
+      let API_URL = `${this.getApiUrl()}/POS/DeleteInvDetail`;
       return this.http.post(API_URL, data, { headers: this._authService.GetHttpHeaders() }).pipe(
         catchError(this._utilService.handleError)
       )      
@@ -77,7 +80,7 @@ export class PosService {
      * @returns any
      */
     DeleteInvoice(data:InvoiceMaster): Observable<any> {
-      let API_URL = `${this.apiUrl}/POS`;
+      let API_URL = `${this.getApiUrl()}/POS`;
       return this.http.delete(API_URL, { headers: this._authService.GetHttpHeaders(), body: data }).pipe(
         catchError(this._utilService.handleError)
       )      
@@ -88,14 +91,14 @@ export class PosService {
      * @returns any
      */
      DeleteInvoicesList(data:InvoiceMaster[]): Observable<any> {
-      let API_URL = `${this.apiUrl}/POS/DeleteList`;
+      let API_URL = `${this.getApiUrl()}/POS/DeleteList`;
       return this.http.delete(API_URL, { headers: this._authService.GetHttpHeaders(), body: data }).pipe(
         catchError(this._utilService.handleError)
       )      
     }
     
     GetInvoiceDetails(data: InvoiceMasterListing): Observable<any> {
-      let API_URL = `${this.apiUrl}/POS/getinvoicedetails`;
+      let API_URL = `${this.getApiUrl()}/POS/getinvoicedetails`;
       return this.http.post(API_URL, data, { headers: this._authService.GetHttpHeaders() })
         .pipe(
           catchError(this._utilService.handleError)
@@ -106,7 +109,7 @@ export class PosService {
 
     // Create
     createTask(data: any): Observable<any> {
-      let API_URL = `${this.apiUrl}/create-task`;
+      let API_URL = `${this.getApiUrl()}/create-task`;
       return this.http.post(API_URL, data, { headers: this._authService.GetHttpHeaders() })
         .pipe(
           catchError(this._utilService.handleError)
@@ -115,21 +118,21 @@ export class PosService {
   
     // Read
     showTasks() {
-      return this.http.get(`${this.apiUrl}`);
+      return this.http.get(`${this.getApiUrl()}`);
     }
   
     // Update
     updateTask(id: any, data: any): Observable<any> {
-      let API_URL = `${this.apiUrl}/update-task/${id}`;
-      return this.http.put(API_URL, data, { headers: this.headers }).pipe(
+      let API_URL = `${this.getApiUrl()}/update-task/${id}`;
+      return this.http.put(API_URL, data, { headers: this._authService.GetHttpHeaders() }).pipe(
         catchError(this._utilService.handleError)
       )
     }
   
     // Delete
     deleteTask(id: any): Observable<any> {
-      var API_URL = `${this.apiUrl}/delete-task/${id}`;
-      return this.http.delete(API_URL).pipe(
+      var API_URL = `${this.getApiUrl()}/delete-task/${id}`;
+      return this.http.delete(API_URL, { headers: this._authService.GetHttpHeaders() }).pipe(
         catchError(this._utilService.handleError)
       )
     }
