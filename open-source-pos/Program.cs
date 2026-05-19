@@ -87,6 +87,9 @@ namespace open_source_pos
                              {  
                                 return 
                                  origin.StartsWith("http://192.168.0.") && origin.EndsWith(":4200")
+                                 ||origin.StartsWith("http://192.168.0.") && origin.EndsWith(":5000")
+                                 ||origin.StartsWith("https://192.168.0.") && origin.EndsWith(":4200")
+                                 ||origin.StartsWith("https://192.168.0.") && origin.EndsWith(":5001")
                                  ||origin == "http://localhost:4200";
                                  
                               })
@@ -195,11 +198,8 @@ namespace open_source_pos
                     c.RoutePrefix = "swagger";
                 });
             }
-
-            app.UseHttpsRedirection();
-
             app.UseCors("AllowAll");
-
+           // app.UseHttpsRedirection();
             app.UseAuthentication();
             app.UseAuthorization();
 
