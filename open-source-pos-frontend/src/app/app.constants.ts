@@ -26,6 +26,9 @@ export class Configuration {
     private runtime: RuntimeConfigService,
   ) {
     let domain = this.window.location.hostname;
+    let port = this.window.location.port;
+    let protocol = this.window.location.protocol;
+    
     this.domain = domain;
 
     const prod = environment.production;
@@ -62,11 +65,11 @@ export class Configuration {
       this.ImageServerUrl = 'https://open-source-pos.alishah.pro/api/api/';
     }
     else if (domain === 'localhost') {
-      if (window.location.port === '82') { // for spain server
+      if (port === '82') { // for spain server
         this.WebApi = `http://localhost:82/api/api`;
         this.ImageServerUrl = 'http://localhost:9096/';
       }
-      else if (window.location.port === '') { // for alishan pc
+      else if (port === '') { // for alishan pc
         this.WebApi = `http://localhost/api/api`;
         this.ImageServerUrl = 'http://localhost:9096/';
       }
@@ -77,8 +80,9 @@ export class Configuration {
 
     }
     else {
-        let protocal: string = this.window.location.protocol;
-        this.WebApi = `${protocal}//${domain}:${window.location.port}/api/api`;
+        
+        this.WebApi = `${protocol}//${domain}:${port}/api/api`;
+        this.ImageServerUrl = `${protocol}//${domain}:9096/`;
     }
 
 
