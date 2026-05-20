@@ -1,66 +1,42 @@
 import { Injectable } from '@angular/core';
-import { Router, CanActivate, ActivatedRouteSnapshot, RouterStateSnapshot, ActivatedRoute, RouterState } from '@angular/router';
+import { Router, CanActivate, ActivatedRouteSnapshot, RouterStateSnapshot } from '@angular/router';
+import { Observable, of } from 'rxjs';
+import { map, catchError } from 'rxjs/operators';
 import { AuthService } from '../views/login/auth.service';
 
 @Injectable()
 export class AuthGuard implements CanActivate {
-  token: string | undefined;
-  constructor(private authService: AuthService, private router: Router, private route: ActivatedRoute) { }
+  constructor(private authService: AuthService, private router: Router) { }
 
-  canActivate(route: ActivatedRouteSnapshot, state: RouterStateSnapshot) {
-    debugger;
+  canActivate(route: ActivatedRouteSnapshot, state: RouterStateSnapshot): Observable<boolean> {
+    const tokenFromUrl = route.queryParams['Q'];
 
-    this.token = route.queryParams["Q"];   
-
-    if (this.token) {
-      //token provided so get current user from backend
-      // this.showLoader = true;
-      this.authService.GetCurrentUser({
-        Token: this.token,
-      }).subscribe(
-        usr => {
-          debugger;
-          // this.showLoader = false;
-          // console.log(sr.Data);
-          let user: any = usr;
-          user.Token = this.token
-          localStorage.setItem('currentUser', JSON.stringify(user));
-          // console.log(usr);
-        });
-
-
-      return true;
+    if (tokenFromUrl) {
+      return this.validateToken(tokenFromUrl, state.url, tokenFromUrl);
     }
-    let currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
-    if (currentUser && currentUser.Token) {
-        // logged in so return true
-        //token provided so get current user from backend
-      // this.showLoader = true;
-      this.authService.GetCurrentUser({
-        Token: currentUser.Token,
-      }).subscribe({
-        next: usr => {
-          debugger;
-          // this.showLoader = false;
-          // console.log(sr.Data);
-          // let user: any = usr;
-          // user.Token = this.token
-          // localStorage.setItem('currentUser', JSON.stringify(user));
-          // console.log(usr);
 
-          return true;
-        },
-        error: e=>{
-          localStorage.removeItem('currentUser');
-          this.router.navigate(['login'], { queryParams: { returnUrl: state.url } });
-          return false;      
-        }
-      });
-      return true;
+    const currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
+    if (currentUser?.Token) {
+      return this.validateToken(currentUser.Token, state.url, currentUser.Token);
     }
-    
-    // not logged in so redirect to login page with the return url
+
     this.router.navigate(['login'], { queryParams: { returnUrl: state.url } });
-    return false;
-    }
+    return of(false);
+  }
+
+  /** Wait for API validation before allowing the route (fixes refresh kicking to login). */
+  private validateToken(token: string, returnUrl: string, tokenToStore: string): Observable<boolean> {
+    return this.authService.GetCurrentUser({ Token: token }).pipe(
+      map(usr => {
+        const user = { ...usr, Token: tokenToStore };
+        localStorage.setItem('currentUser', JSON.stringify(user));
+        return true;
+      }),
+      catchError(() => {
+        localStorage.removeItem('currentUser');
+        this.router.navigate(['login'], { queryParams: { returnUrl } });
+        return of(false);
+      })
+    );
+  }
 }

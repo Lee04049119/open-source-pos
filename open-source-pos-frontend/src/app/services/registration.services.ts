@@ -37,7 +37,6 @@ export class RegistrationServic {
         private _authService: AuthService ) {
         this.loginUserUrl = `${_configuration.WebApi}/User/authenticate/`;
         this.registerUserUrl = `${_configuration.WebApi}/User/register/`;
-        this.testapiUrl = `${_configuration.WebApi}/User/get/`;
 
     }
 
@@ -82,7 +81,6 @@ export class RegistrationServic {
     
     private registerUserUrl: string;
     private loginUserUrl: string;
-    private testapiUrl: string;
     // //private getAllCustomerOrderSummaryUrl: string;
     // //private updateOrderStatusUrl: string;
     // //private updateDeliveryStatusUrl: string;
@@ -169,16 +167,6 @@ export class RegistrationServic {
         )
     }
 
-    // testApi(): Observable<any> {
-    //    debugger;
-    //    let params: any = {test: "A"};
-      
-       
-    //    return this
-    //        ._http.post(this.testapiUrl, JSON.stringify(params), this._ccro.GetChowChoiceRequestOptions())
-    //        .map(this.extractData)
-    //        .catch(this._utilService.handleError);
-    // }
     ForgerPassword(userInfo: any): Observable<any> {
 
         let params = userInfo;

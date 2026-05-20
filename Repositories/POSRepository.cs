@@ -26,7 +26,7 @@ namespace Repositories
         {
             try
             {
-                return await _repo.WithFNNConnection(async c =>
+                return await _repo.WithConnection(async c =>
                 {
                     var mst = model.objInvoiceMaster;
                     var dtl = model.objInvoiceDetailItems;
@@ -394,24 +394,31 @@ namespace Repositories
             return res.FirstOrDefault();
         }
 
-        public async Task<List<FNN_ITEM_ST>> GetSearchItemsAsync(string query, int companyId)
+        public async Task<List<PosItem>> GetSearchItemsAsync(string query, int companyId)
         {
             try
             {
-                return await _repo.WithFNNConnection(async c =>
+                return await _repo.WithConnection(async c =>
                 {
-                    string sqlSearchItems = @"SELECT top 100 * FROM PosItem
-                        WHERE isnull(CustomCode, '') + isnull(Description, '') like '%' + @QUERY + '%'
-                        AND CompanyID = @COMPANY_ID  ORDER BY Description; ";
+                    string sqlSearchItems = @"SELECT TOP 100
+                        CAST(ItemId AS VARCHAR(20)) AS ItemId,
+                        CustomCode,
+                        Description,
+                        ISNULL(SalePrice, 0) AS SalePrice,
+                        @COMPANY_ID AS CompanyID
+                        FROM PosItem
+                        WHERE (ISNULL(CustomCode, '') + ISNULL(Description, '')) LIKE '%' + @QUERY + '%'
+                        AND RTRIM(CAST(CompanyID AS VARCHAR(20))) = RTRIM(CAST(@COMPANY_ID AS VARCHAR(20)))
+                        ORDER BY Description; ";
 
-                    var searchItems = await c.QueryAsync<FNN_ITEM_ST>(sqlSearchItems, new { QUERY = query, COMPANY_ID = companyId });
+                    var searchItems = await c.QueryAsync<PosItem>(sqlSearchItems, new { QUERY = query ?? "", COMPANY_ID = companyId });
                     return searchItems.ToList();
                 });
             }
             catch (Exception ex)
             {
                 _log.ExceptionLogFunc(ex);
-                return Task.FromException<List<FNN_ITEM_ST>>(ex).Result;
+                throw;
             }
         }
 

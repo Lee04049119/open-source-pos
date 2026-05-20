@@ -52,38 +52,37 @@ export class ItemService {
       catchError(this.error)
     )      
   }
-      // Delete
-    deleteTask(id: any): Observable<any> {
-      var API_URL = `${this.getApiUrl}/delete-task/${id}`;
-      return this.http.delete(API_URL).pipe(
-        catchError(this.error) //this._utilService.handleError
-      )
-    }
-  
-    // Handle Errors 
-    error(error: HttpErrorResponse) {
-      debugger;
-      let errorMessage = '';
-      if(error.error.Errors){
-        for (const property in error.error.Errors) {
-          
-          console.log(`${property}: ${error.error.Errors[property]}`);
-          error.error.Errors[property].forEach(function(err: any){
-            errorMessage += err+' \n ';
-          })
 
+  DeleteItem(itemId: string, companyId: number): Observable<any> {
+    const url = `${this.getApiUrl()}/${itemId}?companyId=${companyId}`;
+    return this.http.delete(url, { headers: this._authService.GetHttpHeaders() }).pipe(
+      catchError(this.error)
+    );
+  }
+  
+    // Handle API errors (500 may return a plain string message from the server)
+    error(error: HttpErrorResponse) {
+      let errorMessage = '';
+      const body = error.error;
+
+      if (body && typeof body === 'object' && body.Errors) {
+        for (const property in body.Errors) {
+          body.Errors[property].forEach((err: string) => {
+            errorMessage += err + ' \n ';
+          });
         }
-      }      
-      else if (error.error instanceof ErrorEvent) {
-        errorMessage = error.error.message;
-      }
-      else if(error.error){
-        errorMessage += error.error;
-      }
-      else {
+      } else if (body instanceof ErrorEvent) {
+        errorMessage = body.message;
+      } else if (typeof body === 'string') {
+        errorMessage = body;
+      } else if (body?.Message) {
+        errorMessage = body.Message;
+      } else if (body?.message) {
+        errorMessage = body.message;
+      } else {
         errorMessage = `Error Code: ${error.status}\nMessage: ${error.message}`;
       }
       console.log(errorMessage);
-      return throwError(errorMessage);
+      return throwError(() => errorMessage);
     }
 }

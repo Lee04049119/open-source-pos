@@ -28,21 +28,24 @@ namespace open_source_pos.Controllers
             _emailSender = emailSender;
         }
         /// <summary>
-        /// used to login user
+        /// Login. Returns JWT in the <c>Token</c> field — use that value in Swagger Authorize (paste token only).
         /// </summary>
-        /// <param name="userParam"></param>
-        /// <returns></returns>
         [AllowAnonymous]
         [HttpPost("authenticate")]
         public async Task<IActionResult> Authenticate([FromBody]UserCred userParam)
         {
             try
             {
-                //System.Diagnostics.Debugger.Break();
+                if (userParam == null || string.IsNullOrWhiteSpace(userParam.UserEmail))
+                    return BadRequest(new { message = "Email and password are required." });
+
                 var user = await _userService.Authenticate(userParam.UserEmail, userParam.UserPassword, userParam);
 
                 if (user == null)
                     return BadRequest(new { message = "Username or password is incorrect" });
+
+                if (user.authenticationResult == null)
+                    return StatusCode(500, new { message = "Authentication service returned no result." });
 
                 if (user.authenticationResult.IsLockoutEnabled.GetValueOrDefault(false))
                 {
@@ -56,6 +59,10 @@ namespace open_source_pos.Controllers
                 if (!user.authenticationResult.IsAuthorisedCurrently.GetValueOrDefault(true))
                     return BadRequest(new { message = "Username or password is incorrect" });
 
+                // Wrong password still returns a user row from the DB but no JWT — do not treat as success.
+                if (string.IsNullOrWhiteSpace(user.Token))
+                    return BadRequest(new { message = "Username or password is incorrect" });
+
                 return Ok(user);
             }
             catch (Exception ex)
@@ -63,6 +70,25 @@ namespace open_source_pos.Controllers
                 return StatusCode(500, ex.Message);
             }
 
+        }
+
+        /// <summary>
+        /// Swagger helper: call after Authorize. Returns 200 when the JWT is valid.
+        /// </summary>
+        [Authorize]
+        [HttpGet("verify-token")]
+        public IActionResult VerifyToken()
+        {
+            var userIdClaim = User.FindFirst(ClaimTypes.Name);
+            if (userIdClaim == null || !int.TryParse(userIdClaim.Value, out var userId))
+                return Unauthorized(new { message = "Invalid token: missing user id claim." });
+
+            return Ok(new
+            {
+                valid = true,
+                userId,
+                message = "JWT is valid. You can call other protected APIs."
+            });
         }
 
         [Authorize]
@@ -114,38 +140,26 @@ namespace open_source_pos.Controllers
         }
 
         /// <summary>
-        /// Get user details from token.
+        /// Returns the logged-in user profile. User id comes from JWT claim ClaimTypes.Name (set at login).
         /// </summary>
-        /// <param name="userParam"></param>
-        /// <returns></returns>
         [Authorize]
         [HttpPost("GetCurrentUser")]
         public IActionResult GetCurrentUser()
         {
             try
             {
-                string sUserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-                var x = User.Identities.First().Name;
-                int userId = int.Parse(x);
+                var userIdClaim = User.FindFirst(ClaimTypes.Name);
+                if (userIdClaim == null || !int.TryParse(userIdClaim.Value, out var userId))
+                    return Unauthorized(new { message = "Invalid token." });
+
                 var user = _userService.GetById(userId);
                 if (user == null)
-                    return BadRequest(new { message = "Username or password is incorrect" });
+                    return BadRequest(new { message = "User not found." });
 
                 user.PasswordHash = null;
                 user.PasswordSalt = null;
-                //var user = await _userService.Authenticate(userParam.UserEmail, userParam.UserPassword, userParam);
 
                 return Ok(user);
-
-                //if (user.authenticationResult.IsLockoutEnabled.GetValueOrDefault(false))
-                //{
-                //    return BadRequest(new { message = "Your account is locked for some time because of too many unsuccessful attempts" });
-                //}
-
-                //if (!user.authenticationResult.IsAuthorisedCurrently.GetValueOrDefault(true))
-                //    return BadRequest(new { message = "Username or password is incorrect" });
-
-
             }
             catch (Exception ex)
             {
@@ -276,86 +290,6 @@ namespace open_source_pos.Controllers
 
         }
 
-        //[Authorize]
-        //[HttpPost("add/employee")]
-        //public async Task<IActionResult> RegisterEmployeeUser([FromBody]NotificationModel model)
-        //{
-
-        //    try
-        //    {
-        //        if (ModelState.IsValid)
-        //        {
-        //            // we do not have employee details at the time of sending invitation, so we get them here
-        //            var sr = await _employeeService.GetDataByIdAsync(model.LocationId.Value, model.EmployeeId.Value);
-        //            var employee = sr.Data as Employees;
-
-        //            var userCred = TransaposeToUserCred(model, employee);
-
-        //            var a = Request.Host;
-
-        //            var userCheck = await _userService.GetByEmailAsync(model.SendToEmail);
-        //            string loginURL = GetLoginUrl(a);
-        //            // if the user does not exists already than create new user and than send email
-        //            if (userCheck == null)
-        //            {
-
-        //                userCheck = await _userService.Create(userCred);
-        //                if (userCheck != null)
-        //                {
-
-        //                    string subject = "Job Invitation from Chow Choice";
-        //                    userCred.LinkOrCode = $"<p> You have been invited for a job through Chow Choice  <br/>";
-        //                    userCred.LinkOrCode += @"<p> Use the following Password To Login to Your ChowChoice Account <br/>";
-        //                    userCred.LinkOrCode += userCred.UserPassword + @"</p><p>login  <a href=""";
-        //                    userCred.LinkOrCode += loginURL;
-        //                    userCred.LinkOrCode += @"""> here </a></p> ";
-        //                    userCred.LinkOrCode += "<p>Or paste the following link in your browser address bar </p> ";
-        //                    userCred.LinkOrCode += "<p>" + loginURL + " </p> ";
-        //                    await _emailSender.SendEmailAsync(userCred.UserEmail, subject, userCred.LinkOrCode);
-        //                    userCred.UserPassword = null;
-        //                }
-        //                else
-        //                {
-        //                    throw new Exception("Unable to create a new user");
-        //                }
-        //            }
-        //            // if the user already exists  than only send email
-        //            else if (userCheck.UserID > 0)
-        //            {
-        //                string subject = "Job Invitation from Chow Choice";
-        //                userCred.LinkOrCode = $"<p> You have been invited for a job through Chow Choice  <br/>";
-        //                userCred.LinkOrCode += @"<p> Use your existing  account with this email to login to Chow Choice </p>";
-        //                userCred.LinkOrCode += @"<p>login  <a href=""";
-        //                userCred.LinkOrCode += loginURL;
-        //                userCred.LinkOrCode += @"""> here </a></p> ";
-        //                userCred.LinkOrCode += "<p>Or paste the following link in your browser address bar </p> ";
-        //                userCred.LinkOrCode += "<p>" + loginURL + " </p> ";
-        //                userCred.LinkOrCode += "<p> If you have forgotten your password than you can regenerate you password from login form by clicking on the <b>forget password</b> link </p> ";
-        //                await _emailSender.SendEmailAsync(userCred.UserEmail, subject, userCred.LinkOrCode);
-        //                userCred.UserPassword = null;
-
-        //            }
-
-        //            model.ConfirmByUserID = userCheck.UserID;
-        //            model.AppRoleID = userCheck.AppRoleID;
-
-        //            //user created Now add data in EmployeeInvitationReferences and EmployeeJobs
-        //            var result = await _employeeInvitationService.AddDataEmployeeInvitation_EmpJobsAsync(model);
-        //            result.Data = model;
-        //            return StatusCode((int)(result.IsValid ? HttpStatusCode.OK : HttpStatusCode.BadRequest), result);
-        //        }
-        //        return BadRequest(new ServiceResponse { Data = model, IsValid = false, Message = "Unable To create user " });
-        //    }
-        //    catch (Exception ex)
-        //    {
-        //        // return error message if there was an exception
-        //        return BadRequest(new ServiceResponse { Data = model, IsValid = false, Message = "Unable To create user <br/>" + ex.Message });
-        //    }
-
-
-
-        //}
-
         private static string GetLoginUrl(Microsoft.AspNetCore.Http.HostString hostString)
         {
             string loginURL = "";
@@ -373,63 +307,6 @@ namespace open_source_pos.Controllers
             }
 
             return loginURL;
-        }
-
-        //private UserCred TransaposeToUserCred(NotificationModel model, Employees employee)
-        //{
-        //    var user = new UserCred
-        //    {
-        //        AppID = 1,
-        //        UserEmail = model.SendToEmail,
-        //        IsAdmin = model.role == "ADMIN",
-
-        //        FirstName = employee.FirstName,
-        //        MiddleName = employee.MiddleName,
-        //        LastName = employee.LastName,
-        //        IsActive = true,
-        //        IsCustomer = false,
-        //        AccessFailedCount = 0,
-        //        EmailConfirmed = false,
-        //        LockoutEnabled = false,
-        //        IsTemp = true,
-
-        //        IsDeleted = false,
-
-        //        CreateDate = DateTime.UtcNow,
-
-        //        AppRoleID = GetAppRoleId(model.role),
-
-
-
-
-        //    };
-        //    return user;
-        //}
-
-        private int GetAppRoleId(string role)
-        {
-            switch (role)
-            {
-                case "ADMIN": return 2;
-                case "EMPLOYEE": return 3;
-                case "MANAGER": return 4;
-                default:
-                    return 0;
-                    //  break;
-            }
-        }
-
-        /// <summary>
-        /// Dummy method just for testing
-        /// </summary>
-        /// <returns></returns>
-        [Authorize]
-        [HttpPost]
-        [Route("get")]
-        public IActionResult GetAll()
-        {
-            var users = _userService.GetAll();
-            return Ok(users);
         }
 
         /// <summary>

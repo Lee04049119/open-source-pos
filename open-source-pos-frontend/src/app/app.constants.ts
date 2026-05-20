@@ -46,8 +46,10 @@ export class Configuration {
       return;
     }
 
+    // Use environment localhost API only when the UI is also on localhost (F5 on LAN IP must hit LAN API).
     const fixedApi = environment.apiBaseUrl?.trim();
-    if (fixedApi) {
+    const isLocalUi = domain === 'localhost' || domain === '127.0.0.1';
+    if (fixedApi && isLocalUi) {
       this.WebApi = fixedApi.replace(/\/+$/, '');
       this.ImageServerUrl = (environment.imageServerUrl ?? 'http://localhost:9096/').replace(/\/?$/, '/');
       return;
@@ -74,15 +76,18 @@ export class Configuration {
         this.ImageServerUrl = 'http://localhost:9096/';
       }
       else {
-        this.WebApi = `https://localhost:5001/api`; // for debuging local - updated to .NET 8.0 default port
+        // Angular dev server (4200) → API on HTTP port 5000
+        this.WebApi = `http://localhost:5000/api`;
         this.ImageServerUrl = 'http://localhost:9096/';
       }
 
     }
     else {
-        
-        this.WebApi = `${protocol}//${domain}:${port}/api`;
-        this.ImageServerUrl = `${protocol}//${domain}:9096/`;
+        // LAN / other host: API on same machine, port 5000 (http) or 5001 (https)
+        const apiPort = protocol === 'https:' ? '5001' : '5000';
+        const apiProtocol = protocol === 'https:' ? 'https:' : 'http:';
+        this.WebApi = `${apiProtocol}//${domain}:${apiPort}/api`;
+        this.ImageServerUrl = `${apiProtocol}//${domain}:9096/`;
     }
 
 

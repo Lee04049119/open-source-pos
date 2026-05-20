@@ -9,7 +9,6 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Cors;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using Newtonsoft.Json.Linq;
 using System.Security.Claims;
 
 namespace ChowChoice.Api.Controllers.BSS_ERP
@@ -22,10 +21,12 @@ namespace ChowChoice.Api.Controllers.BSS_ERP
     public class POSController : Controller
     {
         private readonly IPOSService _POSService;
+        private readonly IUserService _userService;
 
-        public POSController(IPOSService POSService)
+        public POSController(IPOSService POSService, IUserService userService)
         {
             _POSService = POSService;
+            _userService = userService;
         }
         
 
@@ -60,16 +61,36 @@ namespace ChowChoice.Api.Controllers.BSS_ERP
         /// <returns></returns>
         [Route("GetSearchItems")]
         [HttpPost]
-        public async Task<IActionResult> GetSearchItems([FromBody] JObject jSearchItems)
+        public async Task<IActionResult> GetSearchItems([FromBody] PosSearchRequest request)
         {
-            dynamic SearchItems = jSearchItems;
-            string Query = SearchItems.Query;
-            int companyId = SearchItems.companyId;
+            try
+            {
+                if (request == null)
+                    return BadRequest(new { message = "Request body is required." });
 
-            ServiceResponse response = await _POSService.GetSearchItemsAsync(Query, companyId);
+                var query = request.GetSearchText();
+                var companyId = request.companyId;
 
-            
-            return StatusCode((int)(response.IsValid ? HttpStatusCode.OK : HttpStatusCode.BadRequest), response);
+                if (companyId <= 0)
+                {
+                    var userIdClaim = User.FindFirst(ClaimTypes.Name);
+                    if (userIdClaim == null || !int.TryParse(userIdClaim.Value, out var userId))
+                        return Unauthorized(new { message = "Invalid token." });
+
+                    var user = _userService.GetById(userId);
+                    if (user == null)
+                        return Unauthorized(new { message = "User not found." });
+
+                    companyId = user.CompanyID;
+                }
+
+                ServiceResponse response = await _POSService.GetSearchItemsAsync(query, companyId);
+                return StatusCode((int)(response.IsValid ? HttpStatusCode.OK : HttpStatusCode.BadRequest), response);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode((int)HttpStatusCode.InternalServerError, ex.Message);
+            }
         }
         /// <summary>
         /// insert pos transaction record.
@@ -160,15 +181,28 @@ namespace ChowChoice.Api.Controllers.BSS_ERP
         /// <returns></returns>
         [Route("getinvoices")]
         [HttpPost]
-        public async Task<IActionResult> GetInvoices([FromBody] JObject jSearchItems)
+        public async Task<IActionResult> GetInvoices([FromBody] ItemSearchRequest request)
         {
             try
             {
-                dynamic SearchItems = jSearchItems;
-                string query = SearchItems.query;
-                int companyId = SearchItems.companyId;
-                int limit = SearchItems.limit;
-                int offset = SearchItems.offset;
+                if (request == null)
+                    return BadRequest(new { message = "Request body is required." });
+
+                var query = request.query ?? "";
+                var companyId = request.companyId;
+                var limit = request.limit;
+                var offset = request.offset;
+
+                if (companyId <= 0)
+                {
+                    var userIdClaim = User.FindFirst(ClaimTypes.Name);
+                    if (userIdClaim == null || !int.TryParse(userIdClaim.Value, out var userId))
+                        return Unauthorized(new { message = "Invalid token." });
+                    var user = _userService.GetById(userId);
+                    if (user == null)
+                        return Unauthorized(new { message = "User not found." });
+                    companyId = user.CompanyID;
+                }
 
                 ServiceResponse response = await _POSService.GetInvoicesAsync(query, companyId, limit, offset);
 

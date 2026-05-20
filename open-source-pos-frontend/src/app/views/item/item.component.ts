@@ -1,4 +1,5 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, ViewChild } from '@angular/core';
+import { NgForm } from '@angular/forms';
 
 import { posItem } from '../../models/posTrans';
 
@@ -42,6 +43,8 @@ export class ItemComponent implements OnInit {
   selectedItems!: posItem[];  
   currentUser:any;
 
+  @ViewChild('posItemForm') posItemForm?: NgForm;
+
   constructor(private messageService: MessageService, 
     private confirmationService: ConfirmationService, private itemService: ItemService,
     private authService: AuthService, private activatedroute: ActivatedRoute) {
@@ -49,13 +52,19 @@ export class ItemComponent implements OnInit {
     }
 
   ngOnInit() {
-      debugger;
       let data = this.activatedroute.snapshot.routeConfig?.path;
+
+      if (!this.currentUser?.Token) {
+        this.messageService.add({severity:'error', summary: 'Not logged in', detail: 'Please log in again.', life: 5000});
+        return;
+      }
+
+      const companyId = this.currentUser.CompanyID ?? this.currentUser.companyId ?? 0;
       let params = {
         query: '',
-        companyId: this.currentUser.CompanyID,
-        limit:0,
-        offset:0
+        companyId: companyId,
+        limit: 0,
+        offset: 0
       };
       this.itemService.GetItems(params).subscribe({
         next: (sr) => {
@@ -89,11 +98,17 @@ export class ItemComponent implements OnInit {
   }
 
   deleteSelectedItems() {
+      if (!this.selectedItems?.length) {
+        return;
+      }
       this.confirmationService.confirm({
-          message: 'You are not allowed to delete the selected Items',
-          header: 'Not Allowed',
+          message: `Delete ${this.selectedItems.length} selected item(s)?`,
+          header: 'Confirm delete',
           icon: 'pi pi-exclamation-triangle',
-          
+          accept: () => {
+            const companyId = this.currentUser.CompanyID ?? this.currentUser.companyId ?? 0;
+            this.selectedItems.forEach(item => this.removeItem(item, companyId, false));
+          }
       });
   }
 
@@ -106,11 +121,37 @@ export class ItemComponent implements OnInit {
 
   deleteProduct(item: posItem) {
       this.confirmationService.confirm({
-          message: 'You are not allowed to delete ' + item.Description + '?',
-          header: 'Not Allowed',
+          message: 'Delete ' + item.Description + '?',
+          header: 'Confirm delete',
           icon: 'pi pi-exclamation-triangle',
-          
+          accept: () => {
+            const companyId = this.currentUser.CompanyID ?? this.currentUser.companyId ?? 0;
+            this.removeItem(item, companyId, true);
+          }
       });
+  }
+
+  private removeItem(item: posItem, companyId: number, showToast: boolean) {
+    if (!item.ItemId) {
+      return;
+    }
+    this.itemService.DeleteItem(item.ItemId, companyId).subscribe({
+      next: (sr) => {
+        if (sr?.IsValid === false) {
+          this.messageService.add({severity:'error', summary: sr.Title || 'Delete failed', detail: sr.Message, life: 6000});
+          return;
+        }
+        this.items = this.items.filter(i => i.ItemId !== item.ItemId);
+        this.totalItems = this.items.length;
+        if (showToast) {
+          this.messageService.add({severity:'success', summary: 'Deleted', detail: item.Description, life: 3000});
+        }
+      },
+      error: (error) => {
+        const detail = error?.Message || error?.message || (typeof error === 'string' ? error : 'Delete failed.');
+        this.messageService.add({severity:'error', summary: 'Delete failed', detail, life: 6000});
+      }
+    });
   }
 
   hideDialog() {
@@ -118,64 +159,89 @@ export class ItemComponent implements OnInit {
       
   }
 
+  /** Build API payload with required PascalCase fields (matches .NET PosItem). */
+  private buildItemPayload(forUpdate: boolean): posItem {
+    const companyId = this.currentUser?.CompanyID ?? this.currentUser?.companyId ?? 0;
+    return {
+      ItemId: String(this.item.ItemId ?? this.item.Id ?? ''),
+      Id: String(this.item.Id ?? this.item.ItemId ?? '0'),
+      CustomCode: (this.item.CustomCode ?? '').trim(),
+      Description: (this.item.Description ?? '').trim(),
+      SalePrice: Number(this.item.SalePrice) || 0,
+      CompanyID: companyId,
+      CreateUser: forUpdate ? (this.item.CreateUser ?? this.currentUser?.UserID) : this.currentUser?.UserID,
+      UpdateUser: forUpdate ? this.currentUser?.UserID : undefined,
+    };
+  }
+
+  private formatApiError(error: any): string {
+    if (error?.Message) return error.Message;
+    if (error?.Errors) {
+      return Object.values(error.Errors).flat().join('\n');
+    }
+    if (typeof error === 'string') return error;
+    return 'Request failed.';
+  }
+
   SaveItem() {
-    debugger;
+    if (!this.posItemForm?.valid) {
+      this.itemFormValidated = true;
+      return;
+    }
+
     this.itemFormValidated = true;
     this.isFormSubmitted = true;
-    this.isRequestProcessing = true;    
-    this.item.CompanyID =  this.currentUser.CompanyID;
+    this.isRequestProcessing = true;
 
-    if(this.isEditing){
-      this.item.UpdateUser =  this.currentUser.UserID;  
-      this.itemService.UpdateItem(this.item).subscribe({
+    if (this.isEditing) {
+      const payload = this.buildItemPayload(true);
+      this.itemService.UpdateItem(payload).subscribe({
         next: (sr) => {
-          debugger;
           this.isRequestProcessing = false;
           this.itemFormValidated = false;
-          this.items[this.findIndexById(this.item.ItemId!)] = this.item;
-
+          if (sr?.IsValid === false) {
+            this.messageService.add({severity:'error', summary: sr.Title || 'Update failed', detail: this.formatApiError(sr), life: 6000});
+            return;
+          }
+          const idx = this.findIndexById(payload.ItemId!);
+          if (idx >= 0) {
+            this.items[idx] = { ...this.items[idx], ...payload };
+          }
           this.messageService.add({severity:'success', summary: 'Successful', detail: 'Product Updated', life: 3000});
           this.productDialog = false;
-          this.item = {
-            CustomCode:"",
-            Description:"",
-            Id:"0",                
-          };
+          this.item = { CustomCode: '', Description: '', Id: '0' };
           this.items = [...this.items];
         },
-        error:(error) =>{
-          debugger;
+        error: (error) => {
           this.isRequestProcessing = false;
           console.error(error);
-          this.messageService.add({severity:'error', summary: 'error', detail: error, life: 3000});
-        }});
-    }
-    else{
-      this.item.CreateUser =  this.currentUser.UserID;
-      // this.showLoader = true;
-      this.itemService.SaveItem(this.item).subscribe({
+          this.messageService.add({severity:'error', summary: 'Update failed', detail: this.formatApiError(error), life: 6000});
+        }
+      });
+    } else {
+      const payload = this.buildItemPayload(false);
+      payload.CreateUser = this.currentUser.UserID;
+      this.itemService.SaveItem(payload).subscribe({
         next: (sr) => {
-          debugger;
           this.isRequestProcessing = false;
           this.itemFormValidated = false;
-          // this.showLoader = false;        
-          this.item.ItemId = sr.Data;
-          this.items.push(this.item);
+          if (sr?.IsValid === false) {
+            this.messageService.add({severity:'error', summary: sr.Title || 'Create failed', detail: this.formatApiError(sr), life: 6000});
+            return;
+          }
+          payload.ItemId = String(sr.Data);
+          this.items.push(payload);
           this.messageService.add({severity:'success', summary: 'Successful', detail: 'Product Created', life: 3000});
           this.productDialog = false;
-          this.item = {
-            CustomCode:"",
-            Description:"",
-            Id:"0",                
-          };
+          this.item = { CustomCode: '', Description: '', Id: '0' };
           this.items = [...this.items];
         },
-        error:(error) =>{
-          debugger;
+        error: (error) => {
           this.isRequestProcessing = false;
           console.error(error);
-          this.messageService.add({severity:'error', summary: 'error', detail: error, life: 3000});
-        }});
+          this.messageService.add({severity:'error', summary: 'Create failed', detail: this.formatApiError(error), life: 6000});
+        }
+      });
     }
     
     

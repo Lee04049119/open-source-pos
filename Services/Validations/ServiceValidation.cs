@@ -13,6 +13,14 @@ namespace Services.Validations
         public static ServiceResponse Validate<T>(T model, AbstractValidator<T> validator)
         {
             ServiceResponse vmServiceResponse = new ServiceResponse();
+            if (model == null)
+            {
+                vmServiceResponse.IsValid = false;
+                vmServiceResponse.Title = ServiceErrorsMessages.Title;
+                vmServiceResponse.Message = "Request body is required.";
+                return vmServiceResponse;
+            }
+
             ValidationResult results = validator.Validate(model);
 
             vmServiceResponse.IsValid = results.IsValid;

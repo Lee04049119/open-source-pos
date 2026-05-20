@@ -37,10 +37,10 @@ namespace Services
 
         public async Task<UserCred> Authenticate(string userEmail, string password, UserCred userParam)
         {
+            userParam ??= new UserCred();
 
             if (string.IsNullOrEmpty(userEmail) || string.IsNullOrEmpty(password))
                 return null;
-
 
             //Get the user here
             var user = await _repo.GetUserByEmailAsync(userEmail);
@@ -53,19 +53,16 @@ namespace Services
             user.IsPasswordCorrect = isPasswordCorrect;
             //here start date is used as a request start date
             if (!user.StartDate.HasValue)
-            {
                 user.StartDate = DateTime.Now;
-            }
-            user.UsersGeoLocation = userParam.UsersGeoLocation;
-            user.StartDate = userParam.StartDate;
-            user.DeviceInfo = userParam.DeviceInfo;
-            //create a user session
-            //Guid id = Guid.NewGuid().ToString();            
+            if (userParam.StartDate.HasValue)
+                user.StartDate = userParam.StartDate;
 
+            user.UsersGeoLocation = userParam.UsersGeoLocation ?? new UserGeoLocation();
+            user.DeviceInfo = userParam.DeviceInfo ?? new DeviceInfo();
             user.SessionToken = Guid.NewGuid().ToString();
-            user.RememberUser = userParam.RememberUser;
+            user.RememberUser = userParam.RememberUser ?? false;
             user.TokenExpirationDate = DateTimeOffset.Now.AddDays(1);
-            user.SessionDate = userParam.SessionDate;
+            user.SessionDate = userParam.SessionDate != default ? userParam.SessionDate : DateTimeOffset.Now;
 
             var authenticationresult = await _repo.UserAuthenticationAndUpdatesAfterLoginAsync(user);
             user.authenticationResult = authenticationresult;
@@ -80,7 +77,9 @@ namespace Services
 
 
 
-            // authentication successful so generate jwt token
+            // Build JWT: HMAC-SHA256 signed with AppSettings:Secret.
+            // ClaimTypes.Name holds UserID — read in controllers via User.FindFirst(ClaimTypes.Name).
+            // Swagger: copy user.Token (not SessionToken) into Authorize.
             var tokenHandler = new JwtSecurityTokenHandler();
             var key = Encoding.ASCII.GetBytes(_appSettings.Secret);
             var tokenDescriptor = new SecurityTokenDescriptor
@@ -113,7 +112,7 @@ namespace Services
                 year = await _repo.GetCurrentFiscalYear(user.CompanyID);
             }
 
-            user.FiscalYearID = year.FiscalYearID;
+            user.FiscalYearID = year?.FiscalYearID ?? 1;
 
             return user;
         }

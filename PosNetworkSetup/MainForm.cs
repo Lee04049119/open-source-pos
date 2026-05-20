@@ -1,10 +1,9 @@
-using System.Text.Json;
 using System.Windows.Forms;
 
 namespace PosNetworkSetup;
 
 /// <summary>
-/// Writes appsettings.Local.json (API CORS) and app-runtime-config.json (Angular URLs) from one host + ports.
+/// Writes appsettings.Local.json, app-runtime-config.json, and CORS in appsettings.Development.json from one host + ports.
 /// </summary>
 public sealed class MainForm : Form
 {
@@ -23,9 +22,9 @@ public sealed class MainForm : Form
 
     public MainForm()
     {
-        Text = "POS — LAN / network setup";
-        Width = 560;
-        Height = 360;
+        Text = "POS — LAN / VPN network setup";
+        Width = 580;
+        Height = 400;
         FormBorderStyle = FormBorderStyle.FixedDialog;
         MaximizeBox = false;
         StartPosition = FormStartPosition.CenterScreen;
@@ -34,31 +33,49 @@ public sealed class MainForm : Form
         {
             Dock = DockStyle.Fill,
             ColumnCount = 2,
-            RowCount = 8,
+            RowCount = 9,
             Padding = new Padding(12),
         };
-        panel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 140));
+        panel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 150));
         panel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
 
         int r = 0;
         AddRow(panel, r++, "Repository root", RepoRow());
-        AddRow(panel, r++, "LAN host / PC name", _host);
+        AddRow(panel, r++, "Host / IP / PC name", HostRow());
         AddRow(panel, r++, "Angular port", _angularPort);
         AddRow(panel, r++, "API HTTP port", _httpApiPort);
         AddRow(panel, r++, "API HTTPS port", _httpsApiPort);
         AddRow(panel, r++, "Image server port", _imagePort);
 
+        var filesLabel = new Label
+        {
+            Text = "Save updates:\r\n• open-source-pos/appsettings.Local.json\r\n• open-source-pos/appsettings.Development.json (CORS)\r\n• open-source-pos-frontend/src/assets/app-runtime-config.json",
+            AutoSize = true,
+            MaximumSize = new Size(400, 0),
+        };
+        panel.Controls.Add(filesLabel, 0, r);
+        panel.SetColumnSpan(filesLabel, 2);
+        r++;
+
         var save = new Button { Text = "Save all", Width = 120, Height = 32 };
         save.Click += (_, _) => SaveAll();
 
-        var footer = new FlowLayoutPanel { Dock = DockStyle.Bottom, Height = 48, Padding = new Padding(12) };
+        var load = new Button { Text = "Load saved", Width = 100, Height = 32 };
+        load.Click += (_, _) => LoadFromRepo();
+
+        var footer = new FlowLayoutPanel { Dock = DockStyle.Bottom, Height = 52, Padding = new Padding(12) };
         footer.Controls.Add(save);
+        footer.Controls.Add(load);
         footer.Controls.Add(_status);
 
         Controls.Add(footer);
         Controls.Add(panel);
 
-        Load += (_, _) => TryLoadLastRepo();
+        Load += (_, _) =>
+        {
+            TryLoadLastRepo();
+            LoadFromRepo();
+        };
 
         static void AddRow(TableLayoutPanel p, int row, string label, Control valueControl)
         {
@@ -74,13 +91,39 @@ public sealed class MainForm : Form
         var browse = new Button { Text = "Browse…", AutoSize = true };
         browse.Click += (_, _) =>
         {
-            using var dlg = new FolderBrowserDialog { Description = "Select repository root (folder containing open-source-pos and open-source-pos-frontend)" };
+            using var dlg = new FolderBrowserDialog
+            {
+                Description = "Select repository root (folder containing open-source-pos and open-source-pos-frontend)",
+            };
             if (dlg.ShowDialog(this) == DialogResult.OK)
+            {
                 _repoRoot.Text = dlg.SelectedPath;
+                LoadFromRepo();
+            }
         };
         var flow = new FlowLayoutPanel { FlowDirection = FlowDirection.LeftToRight, WrapContents = false, AutoSize = true };
         flow.Controls.Add(_repoRoot);
         flow.Controls.Add(browse);
+        return flow;
+    }
+
+    private Control HostRow()
+    {
+        var detect = new Button { Text = "Detect IP", AutoSize = true };
+        detect.Click += (_, _) =>
+        {
+            var ip = NetworkConfigWriter.TryDetectLanIPv4();
+            if (ip != null)
+            {
+                _host.Text = ip;
+                _status.Text = $"Detected IPv4: {ip}";
+            }
+            else
+                MessageBox.Show(this, "Could not detect an active IPv4 address. Enter IP manually (e.g. 10.0.157.138).", Text, MessageBoxButtons.OK, MessageBoxIcon.Information);
+        };
+        var flow = new FlowLayoutPanel { FlowDirection = FlowDirection.LeftToRight, WrapContents = false, AutoSize = true };
+        flow.Controls.Add(_host);
+        flow.Controls.Add(detect);
         return flow;
     }
 
@@ -97,6 +140,28 @@ public sealed class MainForm : Form
         }
     }
 
+    private void LoadFromRepo()
+    {
+        _status.Text = string.Empty;
+        var root = _repoRoot.Text.Trim();
+        if (string.IsNullOrEmpty(root) || !Directory.Exists(root))
+            return;
+
+        var saved = NetworkConfigWriter.TryLoadFromRepo(root);
+        if (saved == null)
+        {
+            _status.Text = "No appsettings.Local.json yet — enter host and Save all.";
+            return;
+        }
+
+        _host.Text = saved.Host;
+        _angularPort.Value = saved.AngularPort;
+        _httpApiPort.Value = saved.HttpApiPort;
+        _httpsApiPort.Value = saved.HttpsApiPort;
+        _imagePort.Value = saved.ImagePort;
+        _status.Text = $"Loaded from appsettings.Local.json ({saved.Host}).";
+    }
+
     private void SaveAll()
     {
         _status.Text = string.Empty;
@@ -110,7 +175,7 @@ public sealed class MainForm : Form
 
         if (string.IsNullOrEmpty(host))
         {
-            MessageBox.Show(this, "Enter this PC's current LAN IP or Windows computer name (e.g. 192.168.0.15 or MY-PC).", Text, MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            MessageBox.Show(this, "Enter this PC's current IP or PC name (e.g. 10.0.157.138 or 192.168.0.4).", Text, MessageBoxButtons.OK, MessageBoxIcon.Warning);
             return;
         }
 
@@ -122,46 +187,30 @@ public sealed class MainForm : Form
             return;
         }
 
-        var angular = (int)_angularPort.Value;
-        var httpApi = (int)_httpApiPort.Value;
-        var httpsApi = (int)_httpsApiPort.Value;
-        var image = (int)_imagePort.Value;
-
-        var localJson = new
-        {
-            Lan = new
-            {
-                Host = host,
-                AngularPort = angular,
-                HttpApiPort = httpApi,
-                HttpsApiPort = httpsApi,
-                ImagePort = image,
-            },
-        };
-
-        var runtime = new
-        {
-            apiBaseUrl = $"http://{host}:{httpApi}/api",
-            apiBaseUrlHttps = $"https://{host}:{httpsApi}/api",
-            imageServerUrl = $"http://{host}:{image}/",
-            imageServerUrlHttps = $"http://{host}:{image}/",
-        };
-
-        var jsonOptions = new JsonSerializerOptions { WriteIndented = true };
+        var settings = new NetworkConfigWriter.LanSettings(
+            host,
+            (int)_angularPort.Value,
+            (int)_httpApiPort.Value,
+            (int)_httpsApiPort.Value,
+            (int)_imagePort.Value);
 
         try
         {
             Directory.CreateDirectory(Path.GetDirectoryName(LastRepoPathFile)!);
             File.WriteAllText(LastRepoPathFile, root);
 
-            var localPath = Path.Combine(apiDir, "appsettings.Local.json");
-            File.WriteAllText(localPath, JsonSerializer.Serialize(localJson, jsonOptions));
+            NetworkConfigWriter.SaveAll(root, settings);
 
-            var runtimePath = Path.Combine(feDir, "app-runtime-config.json");
-            File.WriteAllText(runtimePath, JsonSerializer.Serialize(runtime, jsonOptions));
-
-            _status.Text = "Saved: appsettings.Local.json + src/assets/app-runtime-config.json. Restart API and ng serve.";
-            MessageBox.Show(this, "Saved.\r\n\r\n• API: restart so appsettings.Local.json is read.\r\n• Angular: restart ng serve (or rebuild) so assets pick up app-runtime-config.json.", Text, MessageBoxButtons.OK, MessageBoxIcon.Information);
+            _status.Text = $"Saved for {host}. Restart API + ng serve.";
+            MessageBox.Show(this,
+                "Saved all network config files:\r\n\r\n" +
+                "• open-source-pos/appsettings.Local.json\r\n" +
+                "• open-source-pos/appsettings.Development.json (CORS origins)\r\n" +
+                "• open-source-pos-frontend/src/assets/app-runtime-config.json\r\n\r\n" +
+                "Restart the API and Angular dev server (ng serve) so changes apply.",
+                Text,
+                MessageBoxButtons.OK,
+                MessageBoxIcon.Information);
         }
         catch (Exception ex)
         {

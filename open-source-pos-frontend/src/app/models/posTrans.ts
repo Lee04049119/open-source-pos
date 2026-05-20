@@ -98,7 +98,7 @@ export interface InvoiceDetailItems {
     CompanyID?: number;
     BranchID?: number;
     ModuleID?: string;
-    FiscalYearID?: string;
+    FiscalYearID?: number;
     InvoiceType?: string;
 }
 

@@ -13,5 +13,6 @@ namespace Repositories
         Task<int> AddDataAsync(PosItem posItem);        
         Task<int> UpdDataAsync(PosItem posItem);        
         Task<List<PosItem>> GetItemsAsync(string query, int companyId, int limit, int offset);
+        Task<int> DeleteDataAsync(string itemId, int companyId);
     }
 }

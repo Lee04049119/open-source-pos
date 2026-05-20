@@ -37,14 +37,14 @@ namespace Repositories.SqlServer
             catch (TimeoutException ex)
             {
                 _log.LogErrorToFile("WithConnection", "Timeout Exception - " + ex.Message, false);
-                return Task.FromException<T>(ex).Result;
+                throw;
                 //throw new TimeoutException("Timeout Exception", ex);
 
             }
             catch (SqlException ex)
             {
                 _log.LogErrorToFile("WithConnection", "Sql Exception- " + ex.Message, false);
-                return Task.FromException<T>(ex).Result;
+                throw;
                 //throw new Exception("Sql Exception", ex);
 
             }
@@ -87,14 +87,14 @@ namespace Repositories.SqlServer
             catch (TimeoutException ex)
             {
                 _log.LogErrorToFile("WithConnectionLog", "Timeout Exception - " + ex.Message, false);
-                return Task.FromException<T>(ex).Result;
+                throw;
                 //throw new TimeoutException("Timeout Exception", ex);
 
             }
             catch (SqlException ex)
             {
                 _log.LogErrorToFile("WithConnectionLog", "Sql Exception- " + ex.Message, false);
-                return Task.FromException<T>(ex).Result;
+                throw;
                 //throw new Exception("Sql Exception", ex);
 
             }
@@ -137,14 +137,14 @@ namespace Repositories.SqlServer
             catch (TimeoutException ex)
             {
                 _log.LogErrorToFile("WithFNNConnection", "Timeout Exception - " + ex.Message, false);
-                return Task.FromException<T>(ex).Result;
+                throw;
                 //throw new TimeoutException("Timeout Exception", ex);
 
             }
             catch (SqlException ex)
             {
                 _log.LogErrorToFile("WithFNNConnection", "Sql Exception- " + ex.Message, false);
-                return Task.FromException<T>(ex).Result;
+                throw;
                 //throw new Exception("Sql Exception", ex);
 
             }
@@ -203,14 +203,14 @@ namespace Repositories.SqlServer
             catch (TimeoutException ex)
             {
                 _log.LogErrorToFile("WithConnection", "Timeout Exception - " + ex.Message, false);
-                return Task.FromException<T>(ex).Result;
+                throw;
                 //throw new TimeoutException("Timeout Exception", ex);
 
             }
             catch (SqlException ex)
             {
                 _log.LogErrorToFile("WithConnection", "Sql Exception- " + ex.Message, false);
-                return Task.FromException<T>(ex).Result;
+                throw;
                 //throw new Exception("Sql Exception", ex);
 
             }
@@ -253,14 +253,14 @@ namespace Repositories.SqlServer
             catch (TimeoutException ex)
             {
                 _log.LogErrorToFile("WithConnectionLog", "Timeout Exception - " + ex.Message, false);
-                return Task.FromException<T>(ex).Result;
+                throw;
                 //throw new TimeoutException("Timeout Exception", ex);
 
             }
             catch (SqlException ex)
             {
                 _log.LogErrorToFile("WithConnectionLog", "Sql Exception- " + ex.Message, false);
-                return Task.FromException<T>(ex).Result;
+                throw;
                 //throw new Exception("Sql Exception", ex);
 
             }

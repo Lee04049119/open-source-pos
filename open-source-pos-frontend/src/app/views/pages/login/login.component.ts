@@ -113,8 +113,8 @@ export class LoginComponent implements OnInit {
                     }
                     // if msg parameter is not giver than look for redrictUrl parameter
                     default: {                        
-                        this.redrictURL = params['redrictUrl'];
-  
+                        this.redrictURL = params['returnUrl'] || params['redrictUrl'];
+
                         if (this.redrictURL && this.redrictURL.length >= 2) {
                             this.paragraph = "Please login again to continue your work!";
                         }

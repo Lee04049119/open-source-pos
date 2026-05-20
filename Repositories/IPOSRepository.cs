@@ -13,7 +13,7 @@ namespace Repositories
         Task<int> AddDataAsync(POS model);
         
         Task<int> UpdDataAsync(POS model);        
-        Task<List<FNN_ITEM_ST>> GetSearchItemsAsync(string query, int companyId);
+        Task<List<PosItem>> GetSearchItemsAsync(string query, int companyId);
         /// <summary>
         /// Returns the Invoice master records for Listing.
         /// </summary>

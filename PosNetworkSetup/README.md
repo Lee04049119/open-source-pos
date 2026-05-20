@@ -1,6 +1,6 @@
 # PosNetworkSetup (Windows Forms)
 
-Updates **LAN IP / PC name** in one click (writes `appsettings.Local.json` + `app-runtime-config.json`).
+Updates **LAN / VPN IP** in one click (writes three config files — see below).
 
 ## If build or run fails — read this first
 
@@ -61,11 +61,17 @@ Then restart the API and `ng serve`.
 
 ## Using the WinForms app
 
-1. **Browse** → repo root (folder with `open-source-pos` and `open-source-pos-frontend`).
-2. **LAN host** → current DHCP IP or PC name.
-3. **Save all** → restart API + Angular.
+1. **Browse** → repo root (e.g. `C:\Users\lee\Documents\GitHub\open-source-pos`).
+2. **Detect IP** or type host manually (`192.168.0.4`, `10.0.157.138`, VPN IP, or PC name).
+3. **Load saved** — reads last `appsettings.Local.json` if you saved before.
+4. **Save all** → writes all files below, then **restart API** and **`ng serve`**.
 
-Files written (gitignored):
+### Files updated on Save
 
-- `open-source-pos/appsettings.Local.json`
-- `open-source-pos-frontend/src/assets/app-runtime-config.json`
+| File | Purpose |
+|------|---------|
+| `open-source-pos/appsettings.Local.json` | API `Lan:Host` + ports (gitignored) |
+| `open-source-pos/appsettings.Development.json` | **CORS** `AllowedOrigins` for your IP (keeps localhost entries) |
+| `open-source-pos-frontend/src/assets/app-runtime-config.json` | Angular `apiBaseUrl` → `http://YOUR_IP:5000/api` (gitignored) |
+
+Change IP often (LAN vs VPN): open PosNetworkSetup → **Detect IP** or paste new IP → **Save all** → restart both servers.

@@ -116,16 +116,18 @@ export class PosComponent  implements OnInit  {
     }
     
     RefreshForm(){      
-      let dt = new Date();     
+      let dt = new Date();
+      const companyId = this.currentUser?.CompanyID ?? this.currentUser?.companyId ?? 0;
+      const fiscalYearId = this.currentUser?.FiscalYearID ?? this.currentUser?.fiscalYearId;
       this.form = {
         InvoiceNo: 10000,
         InvoiceDate: dt,
-        Cashier: `${this.currentUser.FirstName} ${this.currentUser.LastName}` ,
+        Cashier: `${this.currentUser?.FirstName || ''} ${this.currentUser?.LastName || ''}`.trim(),
         POSCode: "02",
         ModuleID: 'POS',
-        CompanyID: this.currentUser.CompanyID,
+        CompanyID: companyId,
         InvoiceType: 'INV',
-        FiscalYearID: this.currentUser.FiscalYearID,
+        FiscalYearID: fiscalYearId,
         BranchID: 1
       };
       this.posItemRows= [
@@ -165,8 +167,9 @@ export class PosComponent  implements OnInit  {
         this.displayItemSearchModal = true;
       }
       else{
-        //todo:load item against custome code
-        let code = rowData.customCode;
+        this.txtSearch = rowData.customCode;
+        this.GetSearchItems(rowData.customCode);
+        this.displayItemSearchModal = true;
       }
 
     }
@@ -376,24 +379,29 @@ export class PosComponent  implements OnInit  {
 
     NoItemsFound = true;
     GetSearchItems(pramQuery:string) {
-      //debugger;        
-      
-      // this.showLoader = true;
+      const companyId = this.form.CompanyID
+        || this.currentUser?.CompanyID
+        || this.currentUser?.companyId
+        || 0;
+
       this.posService.GetSearchItems({
         Query: pramQuery,
-        companyId: this.form.CompanyID
-      }).subscribe(
-        sr => {
-          debugger;
-          // this.showLoader = false;
-          // console.log(sr.Data);
-          this.posItemSearch = sr.Data;
+        companyId: companyId
+      }).subscribe({
+        next: (sr) => {
+          const data = sr?.Data;
+          this.posItemSearch = Array.isArray(data) ? data : (data?.Items ?? []);
+          this.NoItemsFound = this.posItemSearch.length === 0;
+        },
+        error: (error) => {
+          console.error(error);
+          this.posItemSearch = [];
           this.NoItemsFound = true;
-          if(this.posItemSearch.length > 0 ){
-            this.NoItemsFound = false;
-          }
-            
-        });
+          const detail = error?.Message || error?.message
+            || (typeof error === 'string' ? error : 'Could not load products. Check API is running.');
+          this.messageService.add({severity:'error', summary: 'Search failed', detail, life: 5000});
+        }
+      });
     }
    /**
    * SAVE_MASSTER_WITH_DETAIL
@@ -404,6 +412,7 @@ export class PosComponent  implements OnInit  {
       let pos:POS = {};
       pos.Task = "SAVE_MASSTER_WITH_DETAIL";
       
+      const fiscalYearId = Number(this.form.FiscalYearID || this.currentUser?.FiscalYearID || 1);
       let dbMst:InvoiceMaster = {InvoiceNo:0, InvoiceDate:mst.InvoiceDate, CompanyID:this.form.CompanyID, } ;
       dbMst.CustomerID = 1;
       dbMst.CreateUser = this.currentUser.UserID;
@@ -416,7 +425,7 @@ export class PosComponent  implements OnInit  {
       dbMst.SaleTaxAmount = 0;
       dbMst.NetAmount = this.txtTotalAmount;
       dbMst.InvoiceType = this.form.InvoiceType;
-      dbMst.FiscalYearID = this.form.FiscalYearID;
+      dbMst.FiscalYearID = fiscalYearId;
       dbMst.OtherTaxPercent = 0;
       dbMst.OtherTaxAmount = 0;
       dbMst.ConsumedCredit = 0;
@@ -425,7 +434,11 @@ export class PosComponent  implements OnInit  {
       pos.objInvoiceMaster = dbMst;
       
       
-      let dbDtl:InvoiceDetailItems = this.MapInvoiceDetailItems(dtl,1);
+      let dbDtl:InvoiceDetailItems = this.MapInvoiceDetailItems(dtl, 1);
+      if (!dbDtl.ItemCode || dbDtl.InvoiceRate! <= 0) {
+        this.messageService.add({severity:'warn', summary: 'Invalid item', detail: 'Select a product with a price before saving.', life: 4000});
+        return;
+      }
 
       pos.objInvoiceDetailItems = dbDtl;
       // this.showLoader = true;
@@ -498,9 +511,10 @@ export class PosComponent  implements OnInit  {
         );
     }
     MapInvoiceDetailItems( dtl:posItemRow, invNo:number):InvoiceDetailItems{
+      const fiscalYearId = Number(this.form.FiscalYearID || this.currentUser?.FiscalYearID || 1);
       let dbDtl:InvoiceDetailItems ={InvoiceNo :invNo};
       dbDtl.SrNo = dtl.SrNo;
-      dbDtl.ItemCode = dtl.ItemId;
+      dbDtl.ItemCode = dtl.ItemId || dtl.customCode || '';
       dbDtl.ItemDescription = dtl.Description;
       dbDtl.Quantity = dtl.Quantity;
       dbDtl.Unit = 'Nos';
@@ -510,7 +524,7 @@ export class PosComponent  implements OnInit  {
       dbDtl.CreateDate = new Date();
       dbDtl.CompanyID = this.form.CompanyID;
       dbDtl.ModuleID = this.form.ModuleID;
-      dbDtl.FiscalYearID = this.form.FiscalYearID;
+      dbDtl.FiscalYearID = fiscalYearId;
       dbDtl.InvoiceType = this.form.InvoiceType;
       dbDtl.DiscountPercent = 0;
       dbDtl.DiscountAmount = 0;

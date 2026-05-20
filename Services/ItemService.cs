@@ -56,7 +56,12 @@ namespace Services
             catch (Exception ex)
             {
                 _log.ExceptionLogFunc(ex);
-                return Task.FromException<ServiceResponse>(ex).Result;
+                return new ServiceResponse
+                {
+                    IsValid = false,
+                    Title = ServiceMessages.TitleFailure,
+                    Message = ex.Message
+                };
             }
 
         }
@@ -65,6 +70,9 @@ namespace Services
         {
             try
             {
+                if (posItem == null)
+                    return InvalidBody();
+
                 ServiceResponse vmServiceResponse = ServiceValidation.Validate(posItem, new PosItemValidator());
 
                 int result = 0;
@@ -105,15 +113,65 @@ namespace Services
             catch (Exception ex)
             {
                 _log.ExceptionLogFunc(ex);
-                return Task.FromException<ServiceResponse>(ex).Result;
+                return FailureResponse(ex.Message);
             }
 
         }
+        public async Task<ServiceResponse> DeleteDataAsync(string itemId, int companyId)
+        {
+            try
+            {
+                var response = new ServiceResponse();
+                if (string.IsNullOrWhiteSpace(itemId) || companyId <= 0)
+                {
+                    response.IsValid = false;
+                    response.Title = ServiceMessages.TitleFailure;
+                    response.Message = "Invalid item or company.";
+                    return response;
+                }
+
+                var result = await _repo.DeleteDataAsync(itemId, companyId);
+                if (result == -1)
+                {
+                    response.IsValid = false;
+                    response.Title = ServiceMessages.TitleFailure;
+                    response.Message = "Cannot delete: item is used on one or more invoices.";
+                }
+                else if (result <= 0)
+                {
+                    response.IsValid = false;
+                    response.Title = ServiceMessages.TitleFailure;
+                    response.Message = ServiceMessages.DataNotFound;
+                }
+                else
+                {
+                    response.IsValid = true;
+                    response.Flag = true;
+                    response.Title = ServiceMessages.TitleSuccess;
+                    response.Message = "Item deleted.";
+                }
+                return response;
+            }
+            catch (Exception ex)
+            {
+                _log.ExceptionLogFunc(ex);
+                return new ServiceResponse
+                {
+                    IsValid = false,
+                    Title = ServiceMessages.TitleFailure,
+                    Message = ex.Message
+                };
+            }
+        }
+
         public async Task<ServiceResponse> UpdDataAsync(PosItem posItem)
         {
             try
             {
-                ServiceResponse vmServiceResponse = ServiceValidation.Validate(posItem, new PosItemValidator());
+                if (posItem == null)
+                    return InvalidBody();
+
+                ServiceResponse vmServiceResponse = ServiceValidation.Validate(posItem, new PosItemUpdateValidator());
 
                 int result = 0;
 
@@ -158,9 +216,23 @@ namespace Services
             catch (Exception ex)
             {
                 _log.ExceptionLogFunc(ex);
-                return Task.FromException<ServiceResponse>(ex).Result;
+                return FailureResponse(ex.Message);
             }
 
         }
+
+        private static ServiceResponse InvalidBody() => new ServiceResponse
+        {
+            IsValid = false,
+            Title = ServiceMessages.TitleFailure,
+            Message = "Request body is required."
+        };
+
+        private static ServiceResponse FailureResponse(string message) => new ServiceResponse
+        {
+            IsValid = false,
+            Title = ServiceMessages.TitleFailure,
+            Message = message
+        };
     }
 }

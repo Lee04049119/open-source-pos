@@ -13,13 +13,13 @@ namespace Services
     public class POSService : IPOSService
     {
         private readonly IPOSRepository _repo;
+        private readonly IItemService _itemService;
         private readonly ILogIt _log;
 
-
-
-        public POSService(IPOSRepository repo, ILogIt log)
+        public POSService(IPOSRepository repo, IItemService itemService, ILogIt log)
         {
             _repo = repo;
+            _itemService = itemService;
             _log = log;
         }
         
@@ -30,39 +30,45 @@ namespace Services
         {
             try
             {
-                ServiceResponse response = new ServiceResponse();
-
                 if (companyId <= 0)
-
                 {
-                    response.IsValid = false;
-                    response.Title = "Error!";
-                    response.Message = "Invalid company request with paramenters.";
-                }
-                else
-                {
-                    var items = await _repo.GetSearchItemsAsync(query, companyId);
-
-                    var posItems = new List<PosItem>();
-
-                    foreach (var item in items)
+                    return new ServiceResponse
                     {
-                        var posItem = new PosItem { CustomCode =item.CustomCode, ItemId = item.ItemId, Description = item.Description, Id = item.ItemId, SalePrice=item.SalePrice };
-                        posItems.Add(posItem);
-
-                    }
-                    response.Data = posItems;
-                    response.IsValid = true;
+                        IsValid = false,
+                        Title = "Error!",
+                        Message = "Invalid company request with paramenters."
+                    };
                 }
 
-                return response;
+                // Reuse the same query as the item list (already working in /items).
+                var listResponse = await _itemService.GetItemsAsync(query ?? "", companyId, 100, 0);
+                if (!listResponse.IsValid)
+                    return listResponse;
+
+                var model = listResponse.Data as GetPosItemsModel;
+                var items = model?.Items ?? new List<PosItem>();
+                foreach (var item in items)
+                    item.Id = item.ItemId;
+
+                return new ServiceResponse
+                {
+                    IsValid = true,
+                    Flag = true,
+                    Data = items,
+                    Title = ServiceMessages.TitleSuccess,
+                    Message = ServiceMessages.DataSaved
+                };
             }
             catch (Exception ex)
             {
                 _log.ExceptionLogFunc(ex);
-                return Task.FromException<ServiceResponse>(ex).Result;
+                return new ServiceResponse
+                {
+                    IsValid = false,
+                    Title = ServiceMessages.TitleFailure,
+                    Message = ex.Message
+                };
             }
-
         }
 
         public async Task<ServiceResponse> AddDataAsync(POS model)
@@ -149,7 +155,12 @@ namespace Services
             catch (Exception ex)
             {
                 _log.ExceptionLogFunc(ex);
-                return Task.FromException<ServiceResponse>(ex).Result;
+                return new ServiceResponse
+                {
+                    IsValid = false,
+                    Title = ServiceMessages.TitleFailure,
+                    Message = ex.Message
+                };
             }
 
         }

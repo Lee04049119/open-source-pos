@@ -58,20 +58,58 @@ namespace Repositories
         {
             try
             {
-                return await _repo.WithFNNConnection(async c =>
+                return await _repo.WithConnection(async c =>
                 {
-                    string sqlSearchItems = @"SELECT  ItemId, CustomCode, Description, SalePrice, CreateUser, CreateDate, UpdateUser, UpdateDate, CompanyID FROM PosItem
-                        WHERE isnull(CustomCode, '') + isnull(Description, '') like '%' + @QUERY + '%'
-                        AND CompanyID = @COMPANY_ID  ORDER BY Description; ";
+                    string sqlSearchItems = @"SELECT TOP 500
+                        CAST(ItemId AS VARCHAR(20)) AS ItemId,
+                        CustomCode,
+                        Description,
+                        ISNULL(SalePrice, 0) AS SalePrice,
+                        @COMPANY_ID AS CompanyID
+                        FROM PosItem
+                        WHERE (ISNULL(CustomCode, '') + ISNULL(Description, '')) LIKE '%' + @QUERY + '%'
+                        AND RTRIM(CAST(CompanyID AS VARCHAR(20))) = RTRIM(CAST(@COMPANY_ID AS VARCHAR(20)))
+                        ORDER BY Description; ";
 
-                    var searchItems = await c.QueryAsync<PosItem>(sqlSearchItems, new { QUERY = query, COMPANY_ID = companyId });
+                    var searchItems = await c.QueryAsync<PosItem>(sqlSearchItems, new { QUERY = query ?? "", COMPANY_ID = companyId });
                     return searchItems.ToList();
                 });
             }
             catch (Exception ex)
             {
                 _log.ExceptionLogFunc(ex);
-                return Task.FromException<List<PosItem>>(ex).Result;
+                throw;
+            }
+        }
+
+        public async Task<int> DeleteDataAsync(string itemId, int companyId)
+        {
+            try
+            {
+                return await _repo.WithConnection(async cmd =>
+                {
+                    const string inUseSql = @"
+                        SELECT COUNT(1) FROM InvoiceDetailItems
+                        WHERE RTRIM(CAST(ItemCode AS VARCHAR(50))) = RTRIM(@ItemId)
+                        AND RTRIM(CAST(CompanyID AS VARCHAR(20))) = RTRIM(CAST(@CompanyID AS VARCHAR(20)));";
+
+                    var inUse = await cmd.ExecuteScalarAsync<int>(inUseSql, new { ItemId = itemId, CompanyID = companyId });
+                    if (inUse > 0)
+                        return -1;
+
+                    const string deleteSql = @"
+                        DELETE FROM PosItem
+                        WHERE RTRIM(CAST(ItemId AS VARCHAR(20))) = RTRIM(@ItemId)
+                        AND RTRIM(CAST(CompanyID AS VARCHAR(20))) = RTRIM(CAST(@CompanyID AS VARCHAR(20)));
+                        SELECT @@ROWCOUNT;";
+
+                    return await cmd.ExecuteScalarAsync<int>(deleteSql, new { ItemId = itemId, CompanyID = companyId });
+                });
+            }
+            catch (Exception ex)
+            {
+                _log.ExceptionLogFunc(ex);
+                return Task.FromException<int>(ex).Result;
             }
         }
 

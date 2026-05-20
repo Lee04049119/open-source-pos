@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Cors.Infrastructure;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Configuration;
@@ -17,6 +18,7 @@ using Repositories.SqlServer;
 using Repositories.Log;
 using Repositories.Common;
 using Models;
+using open_source_pos.Swagger;
 
 namespace open_source_pos
 {
@@ -44,10 +46,16 @@ namespace open_source_pos
             services.AddControllers()
                 .AddJsonOptions(options =>
                 {
+                    // PascalCase in JSON (matches Angular models). Case-insensitive so camelCase also binds.
                     options.JsonSerializerOptions.PropertyNamingPolicy = null;
+                    options.JsonSerializerOptions.PropertyNameCaseInsensitive = true;
                 });
 
-            // Add Swagger/OpenAPI
+            // Swagger UI — how to test JWT-protected APIs:
+            // 1. POST /api/User/authenticate (no lock icon) with { "UserEmail": "...", "UserPassword": "..." }
+            // 2. Copy the "Token" value from the response (not SessionToken)
+            // 3. Click Authorize, paste ONLY the token (Swagger adds "Bearer " automatically)
+            // 4. Call GET /api/User/verify-token to confirm the token works
             services.AddEndpointsApiExplorer();
             services.AddSwaggerGen(c =>
             {
@@ -55,33 +63,22 @@ namespace open_source_pos
                 {
                     Title = "Open Source POS API",
                     Version = "v1",
-                    Description = "A simple open source Point of Sale system API"
+                    Description = "Login via POST /api/User/authenticate, then Authorize with the JWT from the Token field."
                 });
 
-                // Add JWT Authentication to Swagger
+                // Http + Bearer: Swagger UI prefixes "Bearer " for you — paste the raw JWT only.
                 c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
                 {
-                    Description = "JWT Authorization header using the Bearer scheme. Enter 'Bearer' [space] and then your token in the text input below.",
+                    Description = "Paste the JWT from authenticate response (Token field). Do not type 'Bearer'.",
                     Name = "Authorization",
                     In = ParameterLocation.Header,
-                    Type = SecuritySchemeType.ApiKey,
-                    Scheme = "Bearer"
+                    Type = SecuritySchemeType.Http,
+                    Scheme = "bearer",
+                    BearerFormat = "JWT"
                 });
 
-                c.AddSecurityRequirement(new OpenApiSecurityRequirement
-                {
-                    {
-                        new OpenApiSecurityScheme
-                        {
-                            Reference = new OpenApiReference
-                            {
-                                Type = ReferenceType.SecurityScheme,
-                                Id = "Bearer"
-                            }
-                        },
-                        Array.Empty<string>()
-                    }
-                });
+                // Only [Authorize] endpoints show the lock icon (not login/register).
+                c.OperationFilter<AuthorizeCheckOperationFilter>();
             });
 
             // CORS: set Cors:AllowedOrigins in appsettings.{Environment}.json (see appsettings.Development.json / Production).
@@ -138,11 +135,14 @@ namespace open_source_pos
             services.AddTransient<IEmailSender, AuthMessageSender>();
             services.AddTransient<ISmsSender, AuthMessageSender>();
 
-            // JWT Authentication configuration
+            // JWT: signed with AppSettings:Secret; claim ClaimTypes.Name = UserID (see UserService.Authenticate).
             var appSettingsSection = configuration.GetSection("AppSettings");
             services.Configure<AppSettings>(appSettingsSection);
 
             var appSettings = appSettingsSection.Get<AppSettings>();
+            if (string.IsNullOrWhiteSpace(appSettings?.Secret))
+                throw new InvalidOperationException("AppSettings:Secret is missing. Copy appsettings.default.json to appsettings.json.");
+
             var key = Encoding.ASCII.GetBytes(appSettings.Secret);
 
             services.AddAuthentication(x =>
@@ -154,15 +154,14 @@ namespace open_source_pos
             {
                 x.Events = new JwtBearerEvents
                 {
+                    // After signature/expiry checks: ensure user still exists in the database.
                     OnTokenValidated = context =>
                     {
                         var userService = context.HttpContext.RequestServices.GetRequiredService<IUserService>();
                         var userId = int.Parse(context.Principal.Identity.Name);
                         var user = userService.GetById(userId);
                         if (user == null)
-                        {
-                            context.Fail("Unauthorized");
-                        }
+                            context.Fail("User no longer exists.");
                         return System.Threading.Tasks.Task.CompletedTask;
                     }
                 };
@@ -175,7 +174,8 @@ namespace open_source_pos
                     ValidateIssuer = false,
                     ValidateAudience = false,
                     ValidateLifetime = true,
-                    ClockSkew = TimeSpan.Zero
+                    // Small grace window helps Swagger/manual testing when clocks differ slightly.
+                    ClockSkew = TimeSpan.FromMinutes(1)
                 };
             });
 
@@ -222,25 +222,15 @@ namespace open_source_pos
 
         public static void ConfigurePipeline(WebApplication app, IWebHostEnvironment env, IConfiguration configuration)
         {
-            // Configure Swagger for development
-            if (env.IsDevelopment())
+            // Swagger UI: http://<host>:5000/swagger  (root redirects there for easy LAN testing)
+            app.UseSwagger();
+            app.UseSwaggerUI(c =>
             {
-                app.UseSwagger();
-                app.UseSwaggerUI(c =>
-                {
-                    c.SwaggerEndpoint("/swagger/v1/swagger.json", "Open Source POS API V1");
-                    c.RoutePrefix = string.Empty; // Set Swagger UI at the app's root
-                });
-            }
-            else
-            {
-                app.UseSwagger();
-                app.UseSwaggerUI(c =>
-                {
-                    c.SwaggerEndpoint("/swagger/v1/swagger.json", "Open Source POS API V1");
-                    c.RoutePrefix = "swagger";
-                });
-            }
+                c.SwaggerEndpoint("/swagger/v1/swagger.json", "Open Source POS API V1");
+                c.RoutePrefix = "swagger";
+            });
+
+            app.MapGet("/", () => Results.Redirect("/swagger/index.html"));
 
             if (!env.IsDevelopment())
             {

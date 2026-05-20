@@ -168,9 +168,9 @@ namespace Repositories
                     var p = new DynamicParameters();
 
                     if (model.UsersGeoLocation == null)
-                    {
                         model.UsersGeoLocation = new UserGeoLocation();
-                    }
+                    if (model.DeviceInfo == null)
+                        model.DeviceInfo = new DeviceInfo();
 
                     p.Add("UserEmail", model.UserEmail, DbType.String);
                     p.Add("IsPasswordValid", model.IsPasswordCorrect, DbType.Boolean);
