@@ -1,13 +1,17 @@
 <Project Sdk="Microsoft.NET.Sdk">
+
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
     <TargetFramework>net8.0-windows</TargetFramework>
+    <RootNamespace>PosNetworkSetup</RootNamespace>
+    <AssemblyName>PosNetworkSetup</AssemblyName>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <UseWindowsForms>true</UseWindowsForms>
-    <ApplicationIcon />
+    <ApplicationManifest>app.manifest</ApplicationManifest>
     <StartupObject>PosNetworkSetup.Program</StartupObject>
-    <RootNamespace>PosNetworkSetup</RootNamespace>
-    <AssemblyName>PosNetworkSetup</AssemblyName>
+    <!-- WinForms requires the Windows Desktop workload in Visual Studio -->
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
   </PropertyGroup>
+
 </Project>
