@@ -1,4 +1,6 @@
 ﻿using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Builder;
@@ -23,6 +25,8 @@ namespace open_source_pos
         public static void Main(string[] args)
         {
             var builder = WebApplication.CreateBuilder(args);
+            // Optional per-machine LAN settings (gitignored). Written by PosNetworkSetup WinForms tool.
+            builder.Configuration.AddJsonFile("appsettings.Local.json", optional: true, reloadOnChange: true);
 
             // Add services to the container
             ConfigureServices(builder.Services, builder.Configuration);
@@ -90,7 +94,7 @@ namespace open_source_pos
 
             void BuildCorsPolicy(CorsPolicyBuilder builder)
             {
-                var origins = configuration.GetSection("Cors:AllowedOrigins").Get<string[]>();
+                var origins = GetMergedCorsOrigins(configuration);
                 if (origins != null && origins.Length > 0)
                 {
                     builder.WithOrigins(origins)
@@ -176,6 +180,44 @@ namespace open_source_pos
             });
 
             services.AddAuthorization();
+        }
+
+        /// <summary>
+        /// Merges Cors:AllowedOrigins with origins derived from Lan:Host (see appsettings.Local.json).
+        /// </summary>
+        private static string[] GetMergedCorsOrigins(IConfiguration configuration)
+        {
+            var fromFile = configuration.GetSection("Cors:AllowedOrigins").Get<string[]>()
+                ?? Array.Empty<string>();
+            var trimmed = fromFile
+                .Where(s => !string.IsNullOrWhiteSpace(s))
+                .Select(s => s.Trim())
+                .ToArray();
+
+            var host = configuration["Lan:Host"]?.Trim();
+            if (string.IsNullOrEmpty(host))
+                return trimmed;
+
+            var angularPort = configuration["Lan:AngularPort"] ?? "4200";
+            var httpApiPort = configuration["Lan:HttpApiPort"] ?? "5000";
+            var httpsApiPort = configuration["Lan:HttpsApiPort"] ?? "5001";
+            var imagePort = configuration["Lan:ImagePort"] ?? "9096";
+
+            var extra = new List<string>
+            {
+                $"http://{host}:{angularPort}",
+                $"https://{host}:{angularPort}",
+                $"http://{host}:{httpApiPort}",
+                $"https://{host}:{httpsApiPort}",
+                $"http://{host}:{imagePort}",
+                $"https://{host}:{imagePort}",
+            };
+
+            return trimmed
+                .Concat(extra)
+                .Where(s => !string.IsNullOrWhiteSpace(s))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToArray();
         }
 
         public static void ConfigurePipeline(WebApplication app, IWebHostEnvironment env, IConfiguration configuration)

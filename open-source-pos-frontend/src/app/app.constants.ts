@@ -1,6 +1,7 @@
 import { Injectable, Inject } from '@angular/core';
 import { WINDOW } from './window.provider';
 import { environment } from '../environments/environment';
+import { RuntimeConfigService } from './services/runtime-config.service';
 
 
 @Injectable()
@@ -20,9 +21,27 @@ export class Configuration {
    */
   public WebApi = '';
 
-  constructor(@Inject(WINDOW) private window:any) {
+  constructor(
+    @Inject(WINDOW) private window: any,
+    private runtime: RuntimeConfigService,
+  ) {
     let domain = this.window.location.hostname;
     this.domain = domain;
+
+    const prod = environment.production;
+    const runtimeApi = prod
+      ? (this.runtime.apiBaseUrlHttps?.trim() || this.runtime.apiBaseUrl?.trim())
+      : (this.runtime.apiBaseUrl?.trim() || this.runtime.apiBaseUrlHttps?.trim());
+    const runtimeImg = prod
+      ? (this.runtime.imageServerUrlHttps?.trim() || this.runtime.imageServerUrl?.trim())
+      : (this.runtime.imageServerUrl?.trim() || this.runtime.imageServerUrlHttps?.trim());
+
+    if (runtimeApi) {
+      this.WebApi = runtimeApi.replace(/\/+$/, '');
+      const defaultImg = prod ? 'https://localhost:9096/' : 'http://localhost:9096/';
+      this.ImageServerUrl = (runtimeImg ?? defaultImg).replace(/\/?$/, '/');
+      return;
+    }
 
     const fixedApi = environment.apiBaseUrl?.trim();
     if (fixedApi) {

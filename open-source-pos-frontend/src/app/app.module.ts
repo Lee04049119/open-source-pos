@@ -1,4 +1,4 @@
-import { NgModule } from '@angular/core';
+import { NgModule, APP_INITIALIZER } from '@angular/core';
 import { HashLocationStrategy, LocationStrategy, PathLocationStrategy } from '@angular/common';
 import { BrowserModule, Title } from '@angular/platform-browser';
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
@@ -71,6 +71,7 @@ import { IconModule, IconSetService } from '@coreui/icons-angular';
 
 import { WINDOW_PROVIDERS } from './window.provider';
 import { Configuration } from './app.constants';
+import { RuntimeConfigService, initRuntimeConfig } from './services/runtime-config.service';
 import { UtilService } from './services/util.service';
 import { InvoicesListComponent } from './views/pos/invoices-list/invoices-list.component';
 // temp service for testing p table crud component
@@ -160,6 +161,13 @@ const APP_CONTAINERS = [
     Title,
 
     WINDOW_PROVIDERS,
+    RuntimeConfigService,
+    {
+      provide: APP_INITIALIZER,
+      useFactory: initRuntimeConfig,
+      deps: [RuntimeConfigService],
+      multi: true,
+    },
     Configuration,
     UtilService,
     AuthGuard,

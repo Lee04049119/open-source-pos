@@ -1,4 +1,5 @@
 /appsettings.json
+/appsettings.Local.json
 *.log
 ErrorLogerr
 /appsettings.json~606c054437058e27f9ccd5f531c4b1e5f7ff9d42

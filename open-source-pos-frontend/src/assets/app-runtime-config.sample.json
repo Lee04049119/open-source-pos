@@ -1,0 +1,6 @@
+{
+  "apiBaseUrl": "http://YOUR_LAN_HOST:5000/api",
+  "apiBaseUrlHttps": "https://YOUR_LAN_HOST:5001/api",
+  "imageServerUrl": "http://YOUR_LAN_HOST:9096/",
+  "imageServerUrlHttps": "https://YOUR_LAN_HOST:9096/"
+}

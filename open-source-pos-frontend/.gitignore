@@ -31,6 +31,9 @@ chrome-profiler-events*.json
 !.vscode/extensions.json
 .history/*
 
+# LAN / machine-specific (written by PosNetworkSetup tool)
+/src/assets/app-runtime-config.json
+
 # misc
 /.angular/cache
 /.sass-cache

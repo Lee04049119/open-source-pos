@@ -1,5 +1,21 @@
 # Dev vs production (API + CORS)
 
+## When your PC does not have a static LAN IP
+
+Use the **PosNetworkSetup** Windows app (one **Save** updates everything):
+
+1. Build/run the `PosNetworkSetup` project from this solution.
+2. **Browse** to your repo root (folder that contains `open-source-pos` and `open-source-pos-frontend`).
+3. Enter **LAN host**: current DHCP address (e.g. `192.168.0.15`) or the PC **computer name**.
+4. Adjust ports if needed (defaults: Angular `4200`, API HTTP `5000`, HTTPS `5001`, images `9096`).
+5. Click **Save all** — writes:
+   - `open-source-pos/appsettings.Local.json` → `Lan:Host` + ports (API merges extra CORS origins automatically).
+   - `open-source-pos-frontend/src/assets/app-runtime-config.json` → Angular API/image URLs.
+
+Restart the API and `ng serve` after saving. Both generated files are **gitignored** (see `.gitignore`).
+
+See `open-source-pos/appsettings.Local.example.json` and `open-source-pos-frontend/src/assets/app-runtime-config.sample.json` for shape.
+
 ## Backend (ASP.NET)
 
 | Goal | What to use |
@@ -17,7 +33,7 @@ Add any extra browser origins (scheme + host + port) your Angular app uses to th
 
 | Goal | Edit |
 |------|------|
-| **Dev** (`ng serve`) | `src/environments/environment.ts` → `apiBaseUrl`, `imageServerUrl`. |
-| **Production build** | `src/environments/environment.prod.ts` → same fields, then `ng build`. |
+| **Dev** (`ng serve`) | Prefer **`app-runtime-config.json`** from PosNetworkSetup. Fallback: `src/environments/environment.ts` → `apiBaseUrl`, `imageServerUrl`. |
+| **Production build** | Same runtime file before/after `ng build`, or `environment.prod.ts` fallback, then `ng build`. |
 
-Set `apiBaseUrl` to `null` in either file to use the old automatic `Configuration` URLs by hostname.
+Set `apiBaseUrl` to `null` in either environment file to use the old automatic `Configuration` URLs by hostname (only if `app-runtime-config.json` is absent).

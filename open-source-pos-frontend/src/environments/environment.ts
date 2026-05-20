@@ -5,10 +5,13 @@
 export const environment = {
   production: false,
 
-  /** Dev API — use http://localhost:5000/api when browsing only from this PC */
-  apiBaseUrl: 'http://192.168.0.4:5000/api' as string | null,
+  /**
+   * Fallback API when `assets/app-runtime-config.json` is missing.
+   * Prefer saving LAN IP via PosNetworkSetup (writes app-runtime-config.json).
+   */
+  apiBaseUrl: 'http://localhost:5000/api' as string | null,
 
-  imageServerUrl: 'http://192.168.0.4:9096','http://localhost:9096'
+  imageServerUrl: 'http://localhost:9096/',
 };
 
 /*
