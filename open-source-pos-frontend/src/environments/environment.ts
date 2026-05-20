@@ -3,7 +3,12 @@
 // The list of file replacements can be found in `angular.json`.
 
 export const environment = {
-  production: false
+  production: false,
+
+  /** Dev API — use http://localhost:5000/api when browsing only from this PC */
+  apiBaseUrl: 'http://192.168.0.4:5000/api' as string | null,
+
+  imageServerUrl: 'http://192.168.0.4:9096','http://localhost:9096'
 };
 
 /*

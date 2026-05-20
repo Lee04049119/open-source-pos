@@ -1,5 +1,6 @@
 import { Injectable, Inject } from '@angular/core';
 import { WINDOW } from './window.provider';
+import { environment } from '../environments/environment';
 
 
 @Injectable()
@@ -20,9 +21,15 @@ export class Configuration {
   public WebApi = '';
 
   constructor(@Inject(WINDOW) private window:any) {
-     debugger;
     let domain = this.window.location.hostname;
     this.domain = domain;
+
+    const fixedApi = environment.apiBaseUrl?.trim();
+    if (fixedApi) {
+      this.WebApi = fixedApi.replace(/\/+$/, '');
+      this.ImageServerUrl = (environment.imageServerUrl ?? 'http://localhost:9096/').replace(/\/?$/, '/');
+      return;
+    }
 
     this.Server = 'https://localhost:44390/';
     this.FileServer = 'https://localhost:44378/';

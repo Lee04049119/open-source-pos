@@ -2,6 +2,7 @@
 using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Cors.Infrastructure;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -36,8 +37,11 @@ namespace open_source_pos
 
         public static void ConfigureServices(IServiceCollection services, IConfiguration configuration)
         {
-            // Add controllers
-            services.AddControllers();
+            services.AddControllers()
+                .AddJsonOptions(options =>
+                {
+                    options.JsonSerializerOptions.PropertyNamingPolicy = null;
+                });
 
             // Add Swagger/OpenAPI
             services.AddEndpointsApiExplorer();
@@ -76,32 +80,32 @@ namespace open_source_pos
                 });
             });
 
-            // Configure CORS
+            // CORS: set Cors:AllowedOrigins in appsettings.{Environment}.json (see appsettings.Development.json / Production).
+            // Empty/missing list falls back to allowing any origin (development convenience only).
             services.AddCors(options =>
             {
-                options.AddPolicy("AllowAll", builder =>
-                {
-                    builder
-                        .SetIsOriginAllowed(_ => true)
-                        .AllowAnyMethod()
-                        .AllowAnyHeader()
-                        .AllowCredentials();
-                });
-                options.AddPolicy("corsGlobalPolicy", builder =>
-                {
-                    builder
-                        .SetIsOriginAllowed(_ => true)
-                        .AllowAnyMethod()
-                        .AllowAnyHeader()
-                        .AllowCredentials();
-                });
+                options.AddPolicy("AllowAll", BuildCorsPolicy);
+                options.AddPolicy("corsGlobalPolicy", BuildCorsPolicy);
             });
 
-            // Configure JSON options
-            services.AddControllers().AddJsonOptions(options =>
+            void BuildCorsPolicy(CorsPolicyBuilder builder)
             {
-                options.JsonSerializerOptions.PropertyNamingPolicy = null;
-            });
+                var origins = configuration.GetSection("Cors:AllowedOrigins").Get<string[]>();
+                if (origins != null && origins.Length > 0)
+                {
+                    builder.WithOrigins(origins)
+                        .AllowAnyMethod()
+                        .AllowAnyHeader()
+                        .AllowCredentials();
+                }
+                else
+                {
+                    builder.SetIsOriginAllowed(_ => true)
+                        .AllowAnyMethod()
+                        .AllowAnyHeader()
+                        .AllowCredentials();
+                }
+            }
 
             // Obtain database connection string
             var connectionString = configuration.GetValue<string>("DBConnection:ConnectionString");
@@ -196,8 +200,12 @@ namespace open_source_pos
                 });
             }
 
-            app.UseHttpsRedirection();
+            if (!env.IsDevelopment())
+            {
+                app.UseHttpsRedirection();
+            }
 
+            app.UseRouting();
             app.UseCors("AllowAll");
 
             app.UseAuthentication();
