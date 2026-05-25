@@ -13,9 +13,14 @@ namespace Models
         public int UserID { get; set; }
         public bool RememberUser { get; set; }
         public string SessionToken { get; set; }
-        
         public DateTimeOffset SessStart { get; set; }
         public DateTimeOffset SessEnd { get; set; }
         public DateTimeOffset TokenExpirationDate { get; set; }
+        public DateTimeOffset? LastActivityUtc { get; set; }
+        public string browser { get; set; }
+        public string os { get; set; }
+        public string device { get; set; }
+        public string City { get; set; }
+        public string Country_name { get; set; }
     }
 }

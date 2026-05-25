@@ -154,14 +154,38 @@ namespace open_source_pos
             {
                 x.Events = new JwtBearerEvents
                 {
-                    // After signature/expiry checks: ensure user still exists in the database.
+                    OnMessageReceived = context =>
+                    {
+                        if (string.IsNullOrEmpty(context.Token))
+                        {
+                            var accessCookie = context.Request.Cookies[AuthConstants.AccessTokenCookieName];
+                            if (!string.IsNullOrEmpty(accessCookie))
+                                context.Token = accessCookie;
+                        }
+                        return System.Threading.Tasks.Task.CompletedTask;
+                    },
                     OnTokenValidated = context =>
                     {
                         var userService = context.HttpContext.RequestServices.GetRequiredService<IUserService>();
                         var userId = int.Parse(context.Principal.Identity.Name);
                         var user = userService.GetById(userId);
                         if (user == null)
+                        {
                             context.Fail("User no longer exists.");
+                            return System.Threading.Tasks.Task.CompletedTask;
+                        }
+
+                        var sid = context.Principal.FindFirst(AuthConstants.SessionIdClaimType)?.Value;
+                        if (!string.IsNullOrEmpty(sid))
+                        {
+                            if (!userService.ValidateRememberedSession(userId, sid))
+                            {
+                                context.Fail("Remember Me session expired or revoked.");
+                                return System.Threading.Tasks.Task.CompletedTask;
+                            }
+                            userService.TouchRememberedSession(userId, sid);
+                        }
+
                         return System.Threading.Tasks.Task.CompletedTask;
                     }
                 };

@@ -10,6 +10,10 @@ namespace Services
     public interface IUserService 
     {
         Task<UserCred> Authenticate(string username, string password, UserCred userParam);
+        Task<ServiceResponse> RefreshRememberedAccessTokenAsync(string refreshToken);
+        bool ValidateRememberedSession(int userId, string sessionToken);
+        void TouchRememberedSession(int userId, string sessionToken);
+        int GetInactivityExpiresDays();
         Task<UserCred> Create(UserCred userCred);
         IEnumerable<UserCred> GetAll();
         UserCred GetById(int userId);

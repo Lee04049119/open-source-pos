@@ -12,12 +12,15 @@ export class AuthGuard implements CanActivate {
     const tokenFromUrl = route.queryParams['Q'];
 
     if (tokenFromUrl) {
-      return this.validateToken(tokenFromUrl, state.url, tokenFromUrl);
+      return this.validateSession({ Token: tokenFromUrl }, state.url);
     }
 
     const currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
+    if (currentUser?.RememberUser && currentUser?.SessionToken) {
+      return this.validateSession(currentUser, state.url);
+    }
     if (currentUser?.Token) {
-      return this.validateToken(currentUser.Token, state.url, currentUser.Token);
+      return this.validateSession({ ...currentUser, Token: currentUser.Token }, state.url);
     }
 
     this.router.navigate(['login'], { queryParams: { returnUrl: state.url } });
@@ -25,10 +28,13 @@ export class AuthGuard implements CanActivate {
   }
 
   /** Wait for API validation before allowing the route (fixes refresh kicking to login). */
-  private validateToken(token: string, returnUrl: string, tokenToStore: string): Observable<boolean> {
-    return this.authService.GetCurrentUser({ Token: token }).pipe(
+  private validateSession(profile: any, returnUrl: string): Observable<boolean> {
+    return this.authService.GetCurrentUser(profile).pipe(
       map(usr => {
-        const user = { ...usr, Token: tokenToStore };
+        const user = { ...profile, ...usr };
+        if (profile.Token) {
+          user.Token = profile.Token;
+        }
         localStorage.setItem('currentUser', JSON.stringify(user));
         return true;
       }),

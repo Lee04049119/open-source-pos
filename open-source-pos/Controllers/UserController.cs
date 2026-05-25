@@ -12,6 +12,7 @@ using Models;
 using Services;
 using System.Net;
 using Newtonsoft.Json.Linq;
+using Microsoft.Extensions.Options;
 
 namespace open_source_pos.Controllers
 {
@@ -22,11 +23,16 @@ namespace open_source_pos.Controllers
     {
         private readonly IUserService _userService;
         private readonly IEmailSender _emailSender;
-        public UserController(IUserService userService, IEmailSender emailSender)
+        private readonly AppSettings _appSettings;
+
+        public UserController(IUserService userService, IEmailSender emailSender, IOptions<AppSettings> appSettings)
         {
             _userService = userService;
             _emailSender = emailSender;
+            _appSettings = appSettings.Value;
         }
+
+        private AppSettings GetAppSettings() => _appSettings;
         /// <summary>
         /// Login. Returns JWT in the <c>Token</c> field — use that value in Swagger Authorize (paste token only).
         /// </summary>
@@ -44,6 +50,16 @@ namespace open_source_pos.Controllers
                 if (user == null)
                     return BadRequest(new { message = "Username or password is incorrect" });
 
+                if (user.RequiresSessionConfirmation)
+                {
+                    return StatusCode(409, new
+                    {
+                        message = "You are already signed in on another device. Confirm to sign out the other session and continue here.",
+                        requiresSessionConfirmation = true,
+                        existingActiveSession = user.ExistingActiveSession
+                    });
+                }
+
                 if (user.authenticationResult == null)
                     return StatusCode(500, new { message = "Authentication service returned no result." });
 
@@ -59,11 +75,30 @@ namespace open_source_pos.Controllers
                 if (!user.authenticationResult.IsAuthorisedCurrently.GetValueOrDefault(true))
                     return BadRequest(new { message = "Username or password is incorrect" });
 
-                // Wrong password still returns a user row from the DB but no JWT — do not treat as success.
                 if (string.IsNullOrWhiteSpace(user.Token))
                     return BadRequest(new { message = "Username or password is incorrect" });
 
-                return Ok(user);
+                        // ✅ Ensure refresh token exists
+                 if (string.IsNullOrEmpty(user.SessionToken))
+                     user.SessionToken = Guid.NewGuid().ToString();
+
+                       // ✅ Remember Me
+                 if (user.RememberUser == true)
+                {
+                    AuthCookieHelper.SetRememberMeCookies(
+                       Response,
+                       user.Token,
+                       user.SessionToken,
+                       GetAppSettings()
+                        );
+              }
+
+                return Ok(new
+                  {
+                   Token = user.Token,
+                   SessionToken = user.SessionToken,
+                   RememberUser = user.RememberUser
+                });
             }
             catch (Exception ex)
             {
@@ -75,6 +110,23 @@ namespace open_source_pos.Controllers
         /// <summary>
         /// Swagger helper: call after Authorize. Returns 200 when the JWT is valid.
         /// </summary>
+        /// <summary>Remember Me only: issues a new access token cookie from the refresh token cookie.</summary>
+        [AllowAnonymous]
+        [HttpPost("refresh-token")]
+        public async Task<IActionResult> RefreshToken()
+        {
+            var refresh = Request.Cookies[AuthConstants.RefreshTokenCookieName];
+            if (string.IsNullOrWhiteSpace(refresh))
+                return Unauthorized(new { message = "Refresh token missing." });
+
+            var result = await _userService.RefreshRememberedAccessTokenAsync(refresh);
+            if (!result.IsValid)
+                return Unauthorized(result);
+
+            AuthCookieHelper.SetRememberMeCookies(Response, result.Data?.ToString(), refresh, GetAppSettings());
+            return Ok(new { message = result.Message, refreshed = true });
+        }
+
         [Authorize]
         [HttpGet("verify-token")]
         public IActionResult VerifyToken()
@@ -124,6 +176,7 @@ namespace open_source_pos.Controllers
                 var userIdClaim = HttpContext.User.Claims.Where(c => c.Type == ClaimTypes.Name).First();
                 var userID = int.Parse(userIdClaim.Value);
                 var serviceResponse = await _userService.LogOut(userParam, userID);
+                AuthCookieHelper.ClearRememberMeCookies(Response);
 
                 if (serviceResponse == null)
                     return BadRequest(new { message = "An error occoured!" });

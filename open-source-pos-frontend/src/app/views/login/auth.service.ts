@@ -33,16 +33,17 @@ export class AuthService {
    * @param data data.Token is the required token
    */
   GetCurrentUser(data: any): Observable<any> {
-    debugger;
-    this.headers = new HttpHeaders().set('Content-Type', 'application/json');
-    this.headers = this.headers.append('Authorization', `Bearer ${data.Token}`);
+    let headers = new HttpHeaders().set('Content-Type', 'application/json');
+    const rememberMe = data?.RememberUser === true;
+    if (data?.Token) {
+      headers = headers.append('Authorization', `Bearer ${data.Token}`);
+    }
 
-
-    let API_URL = `${this.getApiUrl()}/User/GetCurrentUser`;
-    return this.http.post(API_URL, data, { headers: this.headers })
-      .pipe(
-        catchError(this.error)
-      )
+    const API_URL = `${this.getApiUrl()}/User/GetCurrentUser`;
+    return this.http.post(API_URL, data, {
+      headers,
+      withCredentials: rememberMe
+    }).pipe(catchError(this.error));
   }
   /**
    * Get the Current user object
@@ -56,11 +57,16 @@ export class AuthService {
 
   GetHttpHeaders(): HttpHeaders {
     let headrs = new HttpHeaders().set('Content-Type', 'application/json');
-    let currentUser = JSON.parse(localStorage.getItem('currentUser') || "{}");
-    if (currentUser && currentUser.Token) {
+    const currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
+    if (currentUser?.Token) {
       headrs = headrs.append('Authorization', `Bearer ${currentUser.Token}`);
     }
     return headrs;
+  }
+
+  usesRememberMeCookies(): boolean {
+    const u = this.GetlocalStorageUser();
+    return u?.RememberUser === true;
   }
 
 

@@ -3,6 +3,16 @@
 
 
 
+export interface ActiveSessionInfo {
+    Browser?: string;
+    Os?: string;
+    Device?: string;
+    City?: string;
+    Country_name?: string;
+    SessStart?: string;
+    LastActivityUtc?: string;
+}
+
 export interface AuthenticationResult {
     IsAuthorisedCurrently: boolean;
     IsCredentialValid: boolean;
@@ -71,7 +81,10 @@ export interface User {
     authenticationResult?: AuthenticationResult;
     UsersGeoLocation?: UsersGeoLocation;
     DeviceInfo?: any;
-    RememberUser?: boolean;
+    RememberUser?:  boolean | string | number;
+    ConfirmReplaceSession?: boolean;
+    RequiresSessionConfirmation?: boolean;
+    ExistingActiveSession?: ActiveSessionInfo;
     SessionToken?: string;
     TokenExpirationDate?: Date;
     SessionDate?: Date;

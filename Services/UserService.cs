@@ -60,39 +60,52 @@ namespace Services
             user.UsersGeoLocation = userParam.UsersGeoLocation ?? new UserGeoLocation();
             user.DeviceInfo = userParam.DeviceInfo ?? new DeviceInfo();
             user.SessionToken = Guid.NewGuid().ToString();
-            user.RememberUser = userParam.RememberUser ?? false;
-            user.TokenExpirationDate = DateTimeOffset.Now.AddDays(1);
+            var rememberMe = userParam.RememberUser ?? false;
+            user.RememberUser = rememberMe;
             user.SessionDate = userParam.SessionDate != default ? userParam.SessionDate : DateTimeOffset.Now;
+
+            if (rememberMe)
+            {
+                var refreshDays = ParseSettingsInt(_appSettings.RefreshTokenExpiresDays, 30);
+                user.TokenExpirationDate = DateTimeOffset.UtcNow.AddDays(refreshDays);
+
+                if (isPasswordCorrect && !userParam.ConfirmReplaceSession.GetValueOrDefault(false))
+                {
+                    var active = await _repo.GetActiveRememberedSessionAsync(user.UserID, GetInactivityExpiresDays());
+                    if (active != null && !string.IsNullOrEmpty(active.SessionToken))
+                    {
+                        user.RequiresSessionConfirmation = true;
+                        user.ExistingActiveSession = MapActiveSession(active);
+                        user.PasswordHash = null;
+                        user.PasswordSalt = null;
+                        user.UserPassword = null;
+                        return user;
+                    }
+                }
+
+                if (isPasswordCorrect && userParam.ConfirmReplaceSession.GetValueOrDefault(false))
+                    await _repo.EndOtherRememberedSessionsAsync(user.UserID, user.SessionToken);
+            }
+            else
+            {
+                var sessionHours = ParseSettingsDouble(_appSettings.TokenExpiresInHours, 2);
+                user.TokenExpirationDate = DateTimeOffset.UtcNow.AddHours(sessionHours);
+            }
 
             var authenticationresult = await _repo.UserAuthenticationAndUpdatesAfterLoginAsync(user);
             user.authenticationResult = authenticationresult;
             if (!isPasswordCorrect)
             {
-                // remove password before returning
                 user.PasswordHash = null;
                 user.PasswordSalt = null;
                 user.UserPassword = null;
                 return user;
             }
 
+            user.Token = CreateAccessToken(user, rememberMe);
 
-
-            // Build JWT: HMAC-SHA256 signed with AppSettings:Secret.
-            // ClaimTypes.Name holds UserID — read in controllers via User.FindFirst(ClaimTypes.Name).
-            // Swagger: copy user.Token (not SessionToken) into Authorize.
-            var tokenHandler = new JwtSecurityTokenHandler();
-            var key = Encoding.ASCII.GetBytes(_appSettings.Secret);
-            var tokenDescriptor = new SecurityTokenDescriptor
-            {
-                Subject = new ClaimsIdentity(new Claim[]
-                {
-                    new Claim(ClaimTypes.Name, user.UserID.ToString())
-                }),
-                Expires = DateTime.UtcNow.AddHours(Convert.ToDouble(_appSettings.TokenExpiresInHours)),
-                SigningCredentials = new SigningCredentials(new SymmetricSecurityKey(key), SecurityAlgorithms.HmacSha256Signature)
-            };
-            var token = tokenHandler.CreateToken(tokenDescriptor);
-            user.Token = tokenHandler.WriteToken(token);
+            if (rememberMe)
+                await _repo.UpdateSessionLastActivityAsync(user.UserID, user.SessionToken);
 
             //If the user's password is expired The user will be asked to change it
             user.IsPasswordExpired = (user.ExpirePassword <= DateTime.Now);
@@ -116,6 +129,101 @@ namespace Services
 
             return user;
         }
+
+        public int GetInactivityExpiresDays() => ParseSettingsInt(_appSettings.InactivityExpiresDays, 30);
+
+        public bool ValidateRememberedSession(int userId, string sessionToken)
+        {
+            if (string.IsNullOrWhiteSpace(sessionToken))
+                return false;
+            var session = _repo.ValidateRememberedSessionAsync(userId, sessionToken, GetInactivityExpiresDays()).GetAwaiter().GetResult();
+            return session != null;
+        }
+
+        public void TouchRememberedSession(int userId, string sessionToken)
+        {
+            if (!string.IsNullOrWhiteSpace(sessionToken))
+                _repo.UpdateSessionLastActivityAsync(userId, sessionToken).GetAwaiter().GetResult();
+        }
+
+        public async Task<ServiceResponse> RefreshRememberedAccessTokenAsync(string refreshToken)
+        {
+            var response = new ServiceResponse();
+            if (string.IsNullOrWhiteSpace(refreshToken))
+            {
+                response.Message = "Refresh token is required.";
+                return response;
+            }
+
+            var session = await _repo.GetRememberedSessionByTokenAsync(refreshToken, GetInactivityExpiresDays());
+            if (session == null)
+            {
+                response.Message = "Session expired or invalid.";
+                return response;
+            }
+
+            var user = GetById(session.UserID);
+            if (user == null)
+            {
+                response.Message = "User no longer exists.";
+                return response;
+            }
+
+            user.SessionToken = refreshToken;
+            user.RememberUser = true;
+            var accessToken = CreateAccessToken(user, rememberMe: true);
+            await _repo.UpdateSessionLastActivityAsync(session.UserID, refreshToken);
+
+            response.IsValid = true;
+            response.Flag = true;
+            response.Data = accessToken;
+            response.Message = "Token refreshed.";
+            return response;
+        }
+
+        private string CreateAccessToken(UserCred user, bool rememberMe)
+        {
+            var claims = new List<Claim> { new Claim(ClaimTypes.Name, user.UserID.ToString()) };
+            DateTime expiresUtc;
+
+            if (rememberMe)
+            {
+                claims.Add(new Claim(AuthConstants.SessionIdClaimType, user.SessionToken));
+                claims.Add(new Claim(AuthConstants.RememberMeClaimType, "true"));
+                expiresUtc = DateTime.UtcNow.AddMinutes(ParseSettingsInt(_appSettings.AccessTokenExpiresMinutes, 15));
+            }
+            else
+            {
+                expiresUtc = DateTime.UtcNow.AddHours(ParseSettingsDouble(_appSettings.TokenExpiresInHours, 2));
+            }
+
+            var tokenHandler = new JwtSecurityTokenHandler();
+            var key = Encoding.ASCII.GetBytes(_appSettings.Secret);
+            var tokenDescriptor = new SecurityTokenDescriptor
+            {
+                Subject = new ClaimsIdentity(claims),
+                Expires = expiresUtc,
+                SigningCredentials = new SigningCredentials(new SymmetricSecurityKey(key), SecurityAlgorithms.HmacSha256Signature)
+            };
+            return tokenHandler.WriteToken(tokenHandler.CreateToken(tokenDescriptor));
+        }
+
+        private static ActiveSessionInfo MapActiveSession(UserSessionLog s) => new ActiveSessionInfo
+        {
+            Browser = s.browser,
+            Os = s.os,
+            Device = s.device,
+            City = s.City,
+            Country_name = s.Country_name,
+            SessStart = s.SessStart,
+            LastActivityUtc = s.LastActivityUtc
+        };
+
+        private static int ParseSettingsInt(string value, int fallback) =>
+            int.TryParse(value, out var n) && n > 0 ? n : fallback;
+
+        private static double ParseSettingsDouble(string value, double fallback) =>
+            double.TryParse(value, out var n) && n > 0 ? n : fallback;
 
         public async Task<UserCred> Create(UserCred user)
         {
@@ -237,6 +345,12 @@ namespace Services
                 passwordSalt = Convert.ToBase64String(hmac.Key);
                 passwordHash = Convert.ToBase64String(hmac.ComputeHash(Encoding.UTF8.GetBytes(password)));
             }
+        }
+
+        private bool IsSessionWithinInactivityWindow(UserSessionLog session)
+        {
+            var last = session.LastActivityUtc ?? session.SessStart;
+            return last > DateTimeOffset.UtcNow.AddDays(-GetInactivityExpiresDays());
         }
 
         private static bool VerifyPasswordHash(string password, string storedHash, string storedSalt)
@@ -516,7 +630,8 @@ namespace Services
                         vmServiceResponse.IsValid = false;
                     }
                     //user is remembered, Now check if session expired or not
-                    else if (userSession.TokenExpirationDate >= DateTimeOffset.UtcNow)
+                    else if (userSession.TokenExpirationDate >= DateTimeOffset.UtcNow
+                        && IsSessionWithinInactivityWindow(userSession))
                     {
                         vmServiceResponse.Title = ServiceMessages.Title;
                         vmServiceResponse.Message = "Remember Me was checked and token not expired yet";

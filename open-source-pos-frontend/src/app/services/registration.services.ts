@@ -46,7 +46,10 @@ export class RegistrationServic {
         //     .map(this.extractData)
         //     .catch(err => { return err; });
 
-        return this._http.post(`${this._configuration.WebApi}/User/IsUserLogedInAndRemembered/`, user, { headers: this._authService.GetHttpHeaders() })
+        return this._http.post(`${this._configuration.WebApi}/User/IsUserLogedInAndRemembered/`, user, {
+            headers: this._authService.GetHttpHeaders(),
+            withCredentials: !!user?.RememberUser
+        })
         .pipe(
             catchError(this._utilService.handleError)
         )
@@ -68,7 +71,10 @@ export class RegistrationServic {
             
             let header = this._authService.GetHttpHeaders();
             localStorage.removeItem('currentUser');
-            return this._http.post(`${this._configuration.WebApi}/User/LogOut/`, user, { headers:  header})
+            return this._http.post(`${this._configuration.WebApi}/User/LogOut/`, user, {
+                headers: header,
+                withCredentials: !!user?.RememberUser
+            })
             .pipe(
                 catchError(this._utilService.handleError)
             ); 
@@ -142,9 +148,12 @@ export class RegistrationServic {
             .map(this.extractData)
             .catch(this._utilService.handleError); */ 
             
-            return this._http.post(this.loginUserUrl, model, { headers: this._authService.GetHttpHeaders() })
+            return this._http.post(this.loginUserUrl, model, {
+                headers: this._authService.GetHttpHeaders(),
+                withCredentials: !!model?.RememberUser
+            })
             .pipe(
-              catchError(this._utilService.handleError)
+              catchError((err) => throwError(() => err))
             )
     
         }

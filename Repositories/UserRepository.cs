@@ -251,6 +251,112 @@ namespace Repositories
             }
         }
 
+        public async Task<UserSessionLog> GetActiveRememberedSessionAsync(int userId, int inactivityDays)
+        {
+            try
+            {
+                return await _repo.WithConnection(async cmd =>
+                {
+                    var p = new DynamicParameters();
+                    p.Add("UserID", userId, DbType.Int64);
+                    p.Add("InactivityDays", inactivityDays, DbType.Int32);
+                    return await cmd.QueryFirstOrDefaultAsync<UserSessionLog>(
+                        "usp_UserSession_GetActiveRemembered", p, commandType: CommandType.StoredProcedure);
+                });
+            }
+            catch (Exception ex)
+            {
+                _logIt.ExceptionLogFunc(ex);
+                return null;
+            }
+        }
+
+        public async Task<UserSessionLog> ValidateRememberedSessionAsync(int userId, string sessionToken, int inactivityDays)
+        {
+            try
+            {
+                return await _repo.WithConnection(async cmd =>
+                {
+                    var p = new DynamicParameters();
+                    p.Add("UserID", userId, DbType.Int64);
+                    p.Add("SessionToken", sessionToken, DbType.String);
+                    p.Add("InactivityDays", inactivityDays, DbType.Int32);
+                    return await cmd.QueryFirstOrDefaultAsync<UserSessionLog>(
+                        "usp_UserSession_ValidateRemembered", p, commandType: CommandType.StoredProcedure);
+                });
+            }
+            catch (Exception ex)
+            {
+                _logIt.ExceptionLogFunc(ex);
+                return null;
+            }
+        }
+
+        public async Task<int> EndOtherRememberedSessionsAsync(int userId, string keepSessionToken)
+        {
+            try
+            {
+                return await _repo.WithConnection(async cmd =>
+                {
+                    var p = new DynamicParameters();
+                    p.Add("UserID", userId, DbType.Int64);
+                    p.Add("KeepSessionToken", keepSessionToken, DbType.String);
+                    return await cmd.ExecuteAsync("usp_UserSession_EndOtherRemembered", p, commandType: CommandType.StoredProcedure);
+                });
+            }
+            catch (Exception ex)
+            {
+                _logIt.ExceptionLogFunc(ex);
+                return 0;
+            }
+        }
+
+        public async Task<int> UpdateSessionLastActivityAsync(int userId, string sessionToken)
+        {
+            try
+            {
+                return await _repo.WithConnection(async cmd =>
+                {
+                    var p = new DynamicParameters();
+                    p.Add("UserID", userId, DbType.Int64);
+                    p.Add("SessionToken", sessionToken, DbType.String);
+                    return await cmd.ExecuteAsync("usp_UserSession_UpdateLastActivity", p, commandType: CommandType.StoredProcedure);
+                });
+            }
+            catch (Exception ex)
+            {
+                _logIt.ExceptionLogFunc(ex);
+                return 0;
+            }
+        }
+
+        public async Task<UserSessionLog> GetRememberedSessionByTokenAsync(string sessionToken, int inactivityDays)
+        {
+            try
+            {
+                return await _repo.WithConnection(async cmd =>
+                {
+                    const string sql = @"
+SELECT TOP 1 UserLogID, UserID, RememberUser, SessionToken, SessStart, SessEnd, TokenExpirationDate,
+       LastActivityUtc, browser, os, device, City, Country_name
+FROM dbo.UserLog
+WHERE SessionToken = @SessionToken
+  AND RememberUser = 1
+  AND IsLoginSuccessful = 1
+  AND SessEnd IS NULL
+  AND TokenExpirationDate > SYSDATETIMEOFFSET()
+  AND COALESCE(LastActivityUtc, SessStart) > DATEADD(DAY, -@InactivityDays, SYSDATETIMEOFFSET())";
+                    return await cmd.QueryFirstOrDefaultAsync<UserSessionLog>(sql,
+                        new { SessionToken = sessionToken, InactivityDays = inactivityDays });
+                });
+            }
+            catch (Exception ex)
+            {
+                _logIt.ExceptionLogFunc(ex);
+                return null;
+            }
+        }
+
         public async Task<int> LogOutUserAsync(UserCred model)
         {
             try

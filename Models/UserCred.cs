@@ -65,6 +65,11 @@ namespace Models
         public DeviceInfo DeviceInfo { get; set; }
 
         public bool? RememberUser { get; set; }
+        /// <summary>When true, ends other remembered sessions and completes login (Remember Me only).</summary>
+        public bool? ConfirmReplaceSession { get; set; }
+        /// <summary>True when another remembered device is active and user must confirm.</summary>
+        public bool RequiresSessionConfirmation { get; set; }
+        public ActiveSessionInfo ExistingActiveSession { get; set; }
         public string SessionToken { get; set; }
         public DateTimeOffset TokenExpirationDate { get; set; }
         /// <summary>

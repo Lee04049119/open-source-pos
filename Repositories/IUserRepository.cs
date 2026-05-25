@@ -26,6 +26,11 @@ namespace Repositories
 
         Task<int> LogOutUserAsync(UserCred userParam);
         Task<UserSessionLog> GetUserLogBySessionTokenAsync(UserCred userParam);
+        Task<UserSessionLog> GetActiveRememberedSessionAsync(int userId, int inactivityDays);
+        Task<UserSessionLog> ValidateRememberedSessionAsync(int userId, string sessionToken, int inactivityDays);
+        Task<int> EndOtherRememberedSessionsAsync(int userId, string keepSessionToken);
+        Task<int> UpdateSessionLastActivityAsync(int userId, string sessionToken);
+        Task<UserSessionLog> GetRememberedSessionByTokenAsync(string sessionToken, int inactivityDays);
         /// <summary>
         /// Get fiscal year of company based on current db server date
         /// </summary>

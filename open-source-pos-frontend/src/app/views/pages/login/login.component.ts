@@ -8,7 +8,8 @@ import { GeoLocationService } from '../../../services/geo-location.service';
 import { UserGeoLocation } from '../../../models/UserGeoLocation.model';
 import { DeviceInfo, DeviceDetectorService } from 'ngx-device-detector';
 //import { exDeviceInfo } from '../../../services/device-detector/exDeviceInfo.model'
-import { User } from '../../../models/user.model'
+import { User, ActiveSessionInfo } from '../../../models/user.model'
+import { HttpErrorResponse } from '@angular/common/http';
 import { exDeviceInfo } from '../../../models/exDeviceInfo.model'
 import { UserService } from "../../../services/user.service";
 
@@ -253,56 +254,85 @@ export class LoginComponent implements OnInit {
   
     }
 
-    authenticate(userInfo: any){
-        // clear previously saved data in shared serveice so that new data can be loaded
+    authenticate(userInfo: any, confirmReplaceSession = false) {
+        if (confirmReplaceSession) {
+            userInfo.ConfirmReplaceSession = true;
+        }
+
         this._userService.ClearStorage();
 
-        // now login user 
-        this._registerservices.loginUser(userInfo).subscribe((user: { Token: any; IsTemp: any; IsPasswordExpired: any; IsForgetPassword: any; }) => {
-            debugger;
+        this._registerservices.loginUser(userInfo).subscribe({
+            next: (user: User) => {
+                const remembered = user?.RememberUser === true || user?.RememberUser === "1" || user?.RememberUser === 1;
+                const hasToken = !!user?.Token;
+                const loginOk = user && (hasToken || (remembered && user.SessionToken));
 
-            if (user && user.Token) {
-                
-                // store user details and jwt token in local storage to keep user logged in between page refreshes
-                localStorage.setItem('currentUser', JSON.stringify(user));
-                //this.notificationSuccess(user);
-                this.isRequestProcessing = false;
-                this.showLoader = true;
-                if (this.redrictURL) {
-                    //basically msg does not have any meaning here yet
-                    this.router.navigate([this.redrictURL], { queryParams: { msg: '0x25f3' } });
+                if (!loginOk) {
+                    this.isRequestProcessing = false;
                     return;
                 }
-                else if (user.IsTemp) {
-                    this.router.navigate(['confirm'], { queryParams: { msg: 'chngfrsttmpwd' } });
-                }
-                else if (user.IsPasswordExpired) { ///change password
-                    this.router.navigate(['confirm'], { queryParams: { msg: 'chngExppwd' } });
-                }
-                else if (user.IsForgetPassword) {
-                    this.router.navigate(['confirm'], { queryParams: { msg: 'chngforgettmpwd' } });
-                }
-                else {
-                    this.router.navigate([`dashboard`]);
-                }
-            }
-            return user;
-        }, error => {
-            debugger;
-            this.isRequestProcessing = false;
-            if (error && error.Data && error.Data.IsLockoutEnabled) {
-                // show clock mobel here
-                this.LockoutEndTime = new Date();
 
-                this.LockoutEndTime.setMinutes(this.LockoutEndTime.getMinutes() + 10);
-                this.showlockedModel();
-                
+                if (remembered && !hasToken) {
+                    user.Token = undefined;
+                }
+
+                localStorage.setItem('currentUser', JSON.stringify(user));
+                this.isRequestProcessing = false;
+                this.showLoader = true;
+                this.navigateAfterLogin(user);
+            },
+            error: (error: HttpErrorResponse | any) => {
+                this.isRequestProcessing = false;
+
+                const body = error?.error ?? error;
+                if (error?.status === 409 || body?.requiresSessionConfirmation) {
+                    const detail = this.formatExistingSessionMessage(body.existingActiveSession);
+                    const prompt = (body.message || 'Another device is signed in.') + '\n\n' + detail
+                        + '\n\nSign out the other device and continue here?';
+                    if (window.confirm(prompt)) {
+                        this.isRequestProcessing = true;
+                        this.authenticate(userInfo, true);
+                    }
+                    return;
+                }
+
+                if (error && error.Data && error.Data.IsLockoutEnabled) {
+                    this.LockoutEndTime = new Date();
+                    this.LockoutEndTime.setMinutes(this.LockoutEndTime.getMinutes() + 10);
+                    this.showlockedModel();
+                } else {
+                    this.notificationError(body?.message || error);
+                }
             }
-            else {
-                this.notificationError(error);
-            }
-            
         });
+    }
+
+    private formatExistingSessionMessage(session?: ActiveSessionInfo): string {
+        if (!session) {
+            return 'Active session on another device.';
+        }
+        const parts = [
+            session.Browser && `Browser: ${session.Browser}`,
+            session.Os && `OS: ${session.Os}`,
+            session.Device && `Device: ${session.Device}`,
+            session.City && `Location: ${session.City}${session.Country_name ? ', ' + session.Country_name : ''}`,
+            session.SessStart && `Started: ${new Date(session.SessStart).toLocaleString()}`
+        ].filter(Boolean);
+        return parts.join('\n');
+    }
+
+    private navigateAfterLogin(user: User) {
+        if (this.redrictURL) {
+            this.router.navigate([this.redrictURL], { queryParams: { msg: '0x25f3' } });
+        } else if (user.IsTemp) {
+            this.router.navigate(['confirm'], { queryParams: { msg: 'chngfrsttmpwd' } });
+        } else if (user.IsPasswordExpired) {
+            this.router.navigate(['confirm'], { queryParams: { msg: 'chngExppwd' } });
+        } else if (user.IsForgetPassword) {
+            this.router.navigate(['confirm'], { queryParams: { msg: 'chngforgettmpwd' } });
+        } else {
+            this.router.navigate(['dashboard']);
+        }
     }
 
     public lockedModelVisible = false;
