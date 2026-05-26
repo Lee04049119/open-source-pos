@@ -93,12 +93,7 @@ namespace open_source_pos.Controllers
                         );
               }
 
-                return Ok(new
-                  {
-                   Token = user.Token,
-                   SessionToken = user.SessionToken,
-                   RememberUser = user.RememberUser
-                });
+                return Ok(user);
             }
             catch (Exception ex)
             {
