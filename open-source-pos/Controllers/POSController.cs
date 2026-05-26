@@ -188,32 +188,47 @@ namespace ChowChoice.Api.Controllers.BSS_ERP
                 if (request == null)
                     return BadRequest(new { message = "Request body is required." });
 
-                var query = request.query ?? "";
-                var companyId = request.companyId;
-                var limit = request.limit;
-                var offset = request.offset;
-
-                if (companyId <= 0)
-                {
-                    var userIdClaim = User.FindFirst(ClaimTypes.Name);
-                    if (userIdClaim == null || !int.TryParse(userIdClaim.Value, out var userId))
-                        return Unauthorized(new { message = "Invalid token." });
-                    var user = _userService.GetById(userId);
-                    if (user == null)
-                        return Unauthorized(new { message = "User not found." });
-                    companyId = user.CompanyID;
-                }
-
-                ServiceResponse response = await _POSService.GetInvoicesAsync(query, companyId, limit, offset);
-
-
-                return StatusCode((int)(response.IsValid ? HttpStatusCode.OK : HttpStatusCode.BadRequest), response);
+                return await GetInvoicesResult(request.query, request.companyId, request.limit, request.offset);
             }
             catch (Exception ex)
             {
                 return StatusCode((int)HttpStatusCode.InternalServerError, ex.Message);
             }
 
+        }
+
+        /// <summary>
+        /// GET version of invoice listing for direct/browser/API-client calls.
+        /// </summary>
+        [Route("getinvoices")]
+        [HttpGet]
+        public async Task<IActionResult> GetInvoices([FromQuery] string query = "", [FromQuery] int companyId = 0, [FromQuery] int limit = 0, [FromQuery] int offset = 0)
+        {
+            try
+            {
+                return await GetInvoicesResult(query, companyId, limit, offset);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode((int)HttpStatusCode.InternalServerError, ex.Message);
+            }
+        }
+
+        private async Task<IActionResult> GetInvoicesResult(string query, int companyId, int limit, int offset)
+        {
+            if (companyId <= 0)
+            {
+                var userIdClaim = User.FindFirst(ClaimTypes.Name);
+                if (userIdClaim == null || !int.TryParse(userIdClaim.Value, out var userId))
+                    return Unauthorized(new { message = "Invalid token." });
+                var user = _userService.GetById(userId);
+                if (user == null)
+                    return Unauthorized(new { message = "User not found." });
+                companyId = user.CompanyID;
+            }
+
+            ServiceResponse response = await _POSService.GetInvoicesAsync(query ?? "", companyId, limit, offset);
+            return StatusCode((int)(response.IsValid ? HttpStatusCode.OK : HttpStatusCode.BadRequest), response);
         }
 
         /// <summary>
@@ -227,18 +242,36 @@ namespace ChowChoice.Api.Controllers.BSS_ERP
         {
             try
             {
-                
-
-                ServiceResponse response = await _POSService.GetInvoiceDetailsAsync(invDetail.InvoiceNo.ToString(), invDetail.InvoiceType, (int)invDetail.FiscalYearID, invDetail.CompanyID);
-
-
-                return StatusCode((int)(response.IsValid ? HttpStatusCode.OK : HttpStatusCode.BadRequest), response);
+                return await GetInvoiceDetailsResult(invDetail.InvoiceNo.ToString(), invDetail.InvoiceType, (int)invDetail.FiscalYearID, invDetail.CompanyID);
             }
             catch (Exception ex)
             {
                 return StatusCode((int)HttpStatusCode.InternalServerError, ex.Message);
             }
 
+        }
+
+        /// <summary>
+        /// GET version of invoice details for direct/browser/API-client calls.
+        /// </summary>
+        [Route("getinvoicedetails")]
+        [HttpGet]
+        public async Task<IActionResult> GetInvoiceDetails([FromQuery] string invoiceNo, [FromQuery] string invoiceType, [FromQuery] int fiscalYearId, [FromQuery] int companyId)
+        {
+            try
+            {
+                return await GetInvoiceDetailsResult(invoiceNo, invoiceType, fiscalYearId, companyId);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode((int)HttpStatusCode.InternalServerError, ex.Message);
+            }
+        }
+
+        private async Task<IActionResult> GetInvoiceDetailsResult(string invoiceNo, string invoiceType, int fiscalYearId, int companyId)
+        {
+            ServiceResponse response = await _POSService.GetInvoiceDetailsAsync(invoiceNo, invoiceType, fiscalYearId, companyId);
+            return StatusCode((int)(response.IsValid ? HttpStatusCode.OK : HttpStatusCode.BadRequest), response);
         }
 
         /// <summary>

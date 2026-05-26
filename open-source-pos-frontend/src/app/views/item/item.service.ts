@@ -2,7 +2,7 @@
 import { Injectable } from '@angular/core';
 import { Observable, throwError } from 'rxjs';
 import { catchError } from 'rxjs/operators';
-import { HttpClient, HttpHeaders, HttpErrorResponse } from '@angular/common/http';
+import { HttpClient, HttpHeaders, HttpErrorResponse, HttpParams } from '@angular/common/http';
 
 // import { Http, Response, Request, RequestOptions, Headers } from '@angular/http';
 import { Configuration } from '../../app.constants';
@@ -32,11 +32,20 @@ export class ItemService {
   }
   GetItems(data: any): Observable<any> {
     debugger;
-    let API_URL = `${this.getApiUrl()}/getitems`;
-    return this.http.post(API_URL, data, { headers: this._authService.GetHttpHeaders() })
+    const API_URL = `${this.getApiUrl()}/getitems`;
+    const params = this.buildListParams(data);
+    return this.http.get(API_URL, { headers: this._authService.GetHttpHeaders(), params })
       .pipe(
         catchError(this.error) //this._utilService.handleError
       )
+  }
+
+  private buildListParams(data: any): HttpParams {
+    return new HttpParams()
+      .set('query', data?.query ?? '')
+      .set('companyId', String(data?.companyId ?? 0))
+      .set('limit', String(data?.limit ?? 0))
+      .set('offset', String(data?.offset ?? 0));
   }
 
   SaveItem(data:posItem): Observable<any> {    

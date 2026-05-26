@@ -34,8 +34,8 @@ export class AuthService {
    */
   GetCurrentUser(data: any): Observable<any> {
     let headers = new HttpHeaders().set('Content-Type', 'application/json');
-    const rememberMe = data?.RememberUser === true;
-    if (data?.Token) {
+    const rememberMe = this.isRememberMeValue(data?.RememberUser);
+    if (data?.Token && !rememberMe) {
       headers = headers.append('Authorization', `Bearer ${data.Token}`);
     }
 
@@ -58,7 +58,7 @@ export class AuthService {
   GetHttpHeaders(): HttpHeaders {
     let headrs = new HttpHeaders().set('Content-Type', 'application/json');
     const currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
-    if (currentUser?.Token) {
+    if (currentUser?.Token && !this.isRememberMeValue(currentUser?.RememberUser)) {
       headrs = headrs.append('Authorization', `Bearer ${currentUser.Token}`);
     }
     return headrs;
@@ -66,7 +66,11 @@ export class AuthService {
 
   usesRememberMeCookies(): boolean {
     const u = this.GetlocalStorageUser();
-    return u?.RememberUser === true;
+    return this.isRememberMeValue(u?.RememberUser);
+  }
+
+  private isRememberMeValue(value: any): boolean {
+    return value === true || value === 'true' || value === '1' || value === 1;
   }
 
 

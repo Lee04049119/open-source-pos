@@ -272,8 +272,9 @@ export class LoginComponent implements OnInit {
                     return;
                 }
 
-                if (remembered && !hasToken) {
-                    user.Token = undefined;
+                if (remembered) {
+                    user.RememberUser = true;
+                    delete user.Token;
                 }
 
                 localStorage.setItem('currentUser', JSON.stringify(user));

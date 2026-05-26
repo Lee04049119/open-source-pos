@@ -2,7 +2,7 @@
 import { Injectable } from '@angular/core';
 import { Observable, throwError } from 'rxjs';
 import { catchError } from 'rxjs/operators';
-import { HttpClient, HttpHeaders, HttpErrorResponse } from '@angular/common/http';
+import { HttpClient, HttpHeaders, HttpErrorResponse, HttpParams } from '@angular/common/http';
 
 // import { Http, Response, Request, RequestOptions, Headers } from '@angular/http';
 import { Configuration } from '../../app.constants';
@@ -45,8 +45,9 @@ export class PosService {
     }
 
     GetInvoicesList(data: any): Observable<any> {
-      let API_URL = `${this.getApiUrl()}/POS/getinvoices`;
-      return this.http.post(API_URL, data, { headers: this._authService.GetHttpHeaders() })
+      const API_URL = `${this.getApiUrl()}/POS/getinvoices`;
+      const params = this.buildListParams(data);
+      return this.http.get(API_URL, { headers: this._authService.GetHttpHeaders(), params })
         .pipe(
           catchError(this._utilService.handleError)
         )
@@ -98,11 +99,24 @@ export class PosService {
     }
     
     GetInvoiceDetails(data: InvoiceMasterListing): Observable<any> {
-      let API_URL = `${this.getApiUrl()}/POS/getinvoicedetails`;
-      return this.http.post(API_URL, data, { headers: this._authService.GetHttpHeaders() })
+      const API_URL = `${this.getApiUrl()}/POS/getinvoicedetails`;
+      const params = new HttpParams()
+        .set('invoiceNo', String(data?.InvoiceNo ?? ''))
+        .set('invoiceType', data?.InvoiceType ?? '')
+        .set('fiscalYearId', String(data?.FiscalYearID ?? 0))
+        .set('companyId', String(data?.CompanyID ?? 0));
+      return this.http.get(API_URL, { headers: this._authService.GetHttpHeaders(), params })
         .pipe(
           catchError(this._utilService.handleError)
         )
+    }
+
+    private buildListParams(data: any): HttpParams {
+      return new HttpParams()
+        .set('query', data?.query ?? '')
+        .set('companyId', String(data?.companyId ?? 0))
+        .set('limit', String(data?.limit ?? 0))
+        .set('offset', String(data?.offset ?? 0));
     }
 
 

@@ -32,7 +32,10 @@ export class AuthGuard implements CanActivate {
     return this.authService.GetCurrentUser(profile).pipe(
       map(usr => {
         const user = { ...profile, ...usr };
-        if (profile.Token) {
+        if (this.isRememberMeValue(user.RememberUser)) {
+          user.RememberUser = true;
+          delete user.Token;
+        } else if (profile.Token) {
           user.Token = profile.Token;
         }
         localStorage.setItem('currentUser', JSON.stringify(user));
@@ -44,5 +47,9 @@ export class AuthGuard implements CanActivate {
         return of(false);
       })
     );
+  }
+
+  private isRememberMeValue(value: any): boolean {
+    return value === true || value === 'true' || value === '1' || value === 1;
   }
 }

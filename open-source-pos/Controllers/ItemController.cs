@@ -41,34 +41,50 @@ namespace Api.Controllers
                 if (request == null)
                     return BadRequest(new { message = "Request body is required." });
 
-                var query = request.query ?? "";
-                var companyId = request.companyId;
-                var limit = request.limit;
-                var offset = request.offset;
-
-                // When CompanyID is missing from the client (undefined in JS), use the JWT user's company.
-                if (companyId <= 0)
-                {
-                    var userIdClaim = User.FindFirst(ClaimTypes.Name);
-                    if (userIdClaim == null || !int.TryParse(userIdClaim.Value, out var userId))
-                        return Unauthorized(new { message = "Invalid token." });
-
-                    var user = _userService.GetById(userId);
-                    if (user == null)
-                        return Unauthorized(new { message = "User not found." });
-
-                    companyId = user.CompanyID;
-                }
-
-                ServiceResponse response = await _ItemService.GetItemsAsync(query, companyId, limit, offset);
-
-                return StatusCode((int)(response.IsValid ? HttpStatusCode.OK : HttpStatusCode.BadRequest), response);
+                return await GetItemsResult(request.query, request.companyId, request.limit, request.offset);
             }
             catch (Exception ex)
             {
                 return StatusCode((int)HttpStatusCode.InternalServerError, ex.Message);
             }
             
+        }
+
+        /// <summary>
+        /// GET version of item listing for direct/browser/API-client calls.
+        /// </summary>
+        [Route("getitems")]
+        [HttpGet]
+        public async Task<IActionResult> GetItems([FromQuery] string query = "", [FromQuery] int companyId = 0, [FromQuery] int limit = 0, [FromQuery] int offset = 0)
+        {
+            try
+            {
+                return await GetItemsResult(query, companyId, limit, offset);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode((int)HttpStatusCode.InternalServerError, ex.Message);
+            }
+        }
+
+        private async Task<IActionResult> GetItemsResult(string query, int companyId, int limit, int offset)
+        {
+            // When CompanyID is missing from the client (undefined in JS), use the JWT user's company.
+            if (companyId <= 0)
+            {
+                var userIdClaim = User.FindFirst(ClaimTypes.Name);
+                if (userIdClaim == null || !int.TryParse(userIdClaim.Value, out var userId))
+                    return Unauthorized(new { message = "Invalid token." });
+
+                var user = _userService.GetById(userId);
+                if (user == null)
+                    return Unauthorized(new { message = "User not found." });
+
+                companyId = user.CompanyID;
+            }
+
+            ServiceResponse response = await _ItemService.GetItemsAsync(query ?? "", companyId, limit, offset);
+            return StatusCode((int)(response.IsValid ? HttpStatusCode.OK : HttpStatusCode.BadRequest), response);
         }
         /// <summary>
         /// insert pos Product / Item record.

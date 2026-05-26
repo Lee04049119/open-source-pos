@@ -20,7 +20,9 @@ export class AuthInterceptor implements HttpInterceptor {
 
   intercept(req: HttpRequest<unknown>, next: HttpHandler): Observable<HttpEvent<unknown>> {
     const rememberMe = this.isRememberMeUser();
-    const authReq = rememberMe ? req.clone({ withCredentials: true }) : req;
+    const authReq = rememberMe
+      ? req.clone({ headers: req.headers.delete('Authorization'), withCredentials: true })
+      : req;
 
     return next.handle(authReq).pipe(
       catchError((err: HttpErrorResponse) => {
@@ -64,7 +66,7 @@ export class AuthInterceptor implements HttpInterceptor {
   private isRememberMeUser(): boolean {
     try {
       const u = JSON.parse(localStorage.getItem('currentUser') || '{}');
-      return u?.RememberUser === true;
+      return u?.RememberUser === true || u?.RememberUser === 'true' || u?.RememberUser === '1' || u?.RememberUser === 1;
     } catch {
       return false;
     }
