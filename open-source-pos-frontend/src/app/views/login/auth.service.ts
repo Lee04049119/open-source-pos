@@ -35,7 +35,7 @@ export class AuthService {
   GetCurrentUser(data: any): Observable<any> {
     let headers = new HttpHeaders().set('Content-Type', 'application/json');
     const rememberMe = this.isRememberMeValue(data?.RememberUser);
-    if (data?.Token && !rememberMe) {
+    if (data?.Token) {
       headers = headers.append('Authorization', `Bearer ${data.Token}`);
     }
 
@@ -58,7 +58,7 @@ export class AuthService {
   GetHttpHeaders(): HttpHeaders {
     let headrs = new HttpHeaders().set('Content-Type', 'application/json');
     const currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
-    if (currentUser?.Token && !this.isRememberMeValue(currentUser?.RememberUser)) {
+    if (currentUser?.Token) {
       headrs = headrs.append('Authorization', `Bearer ${currentUser.Token}`);
     }
     return headrs;

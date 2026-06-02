@@ -35,8 +35,8 @@ namespace Repositories
                         
                     SET @MMAX_ID = @MMAX_ID + 1                                                          
 
-                    INSERT INTO PosItem(ItemId, CustomCode, Description, SalePrice, CreateUser, CreateDate, CompanyID)
-                    VALUES(@MMAX_ID, @CustomCode, @Description, @SalePrice, @CreateUser, GETDATE(), @CompanyID)
+                    INSERT INTO PosItem(ItemId, CustomCode, Description, ShortDesc, SalePrice, CreateUser, CreateDate, CompanyID)
+                    VALUES(@MMAX_ID, @CustomCode, @Description, @ShortDesc, @SalePrice, @CreateUser, GETDATE(), @CompanyID)
                     SELECT @MMAX_ID
                         ; ";
 
@@ -64,6 +64,7 @@ namespace Repositories
                         CAST(ItemId AS VARCHAR(20)) AS ItemId,
                         CustomCode,
                         Description,
+                        ShortDesc,
                         ISNULL(SalePrice, 0) AS SalePrice,
                         @COMPANY_ID AS CompanyID
                         FROM PosItem
@@ -123,6 +124,7 @@ namespace Repositories
                     UPDATE PosItem SET
                     CustomCode = @CustomCode, 
                     Description = @Description, 
+                    ShortDesc = @ShortDesc,
                     SalePrice = @SalePrice,
                     UpdateUser = @UpdateUser,
                     UpdateDate = GETDATE()

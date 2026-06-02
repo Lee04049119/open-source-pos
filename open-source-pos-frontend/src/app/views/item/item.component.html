@@ -37,6 +37,7 @@
                 <th pSortableColumn="Description">Description <p-sortIcon field="Description"></p-sortIcon></th>
                 <th pSortableColumn="CustomCode">Custom Code <p-sortIcon field="CustomCode"></p-sortIcon></th>
                 <th pSortableColumn="SalePrice">Sale Price <p-sortIcon field="SalePrice"></p-sortIcon></th>
+                <th pSortableColumn="ShortDesc">Short Desc <p-sortIcon field="ShortDesc"></p-sortIcon></th> 
                 <th></th>
             </tr>
         </ng-template>
@@ -48,6 +49,7 @@
                 <td style="padding: 0.2rem 1rem;">{{item.ItemId}}</td>
                 <td style="padding: 0.2rem 1rem;">{{item.Description}}</td>
                 <td style="padding: 0.2rem 1rem;">{{item.CustomCode}}</td>
+                <td style="padding: 0.2rem 1rem;">{{item.ShortDesc}}</td>
                 <td style="padding: 0.2rem 1rem;">{{item.SalePrice | currency:'USD'}}</td>                
                 <td style="padding: 0.2rem 1rem;">
                     <button pButton pRipple icon="pi pi-pencil" class="p-button-rounded p-button-success mr-2" (click)="editProduct(item)"></button>
@@ -92,7 +94,20 @@
                     />
                     <c-form-feedback [valid]="false">Please provide a valid Description.</c-form-feedback>
                 </c-input-group>
-
+                <c-input-group class="mb-3">
+                   <span cInputGroupText>
+                       <svg cIcon name="cilDescription"></svg>
+                   </span>
+                   <input 
+                     name="ShortDesc" 
+                     [(ngModel)]="item.ShortDesc" 
+                     autoComplete="ShortDesc" 
+                     cFormControl 
+                     placeholder="Short Description" 
+                     type="text"
+                     />
+                      <c-form-feedback [valid]="false">Please provide a valid Short Description.</c-form-feedback>
+                </c-input-group>
                 <c-input-group class="mb-3">
                     <span cInputGroupText>
                       <svg cIcon name="cilQrCode"></svg>

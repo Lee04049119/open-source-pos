@@ -263,7 +263,7 @@ export class LoginComponent implements OnInit {
 
         this._registerservices.loginUser(userInfo).subscribe({
             next: (user: User) => {
-                const remembered = user?.RememberUser === true || user?.RememberUser === "1" || user?.RememberUser === 1;
+                const remembered = user?.RememberUser === true ;
                 const hasToken = !!user?.Token;
                 const loginOk = user && (hasToken || (remembered && user.SessionToken));
 
@@ -274,7 +274,6 @@ export class LoginComponent implements OnInit {
 
                 if (remembered) {
                     user.RememberUser = true;
-                    delete user.Token;
                 }
 
                 localStorage.setItem('currentUser', JSON.stringify(user));

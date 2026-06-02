@@ -21,7 +21,7 @@ export class AuthInterceptor implements HttpInterceptor {
   intercept(req: HttpRequest<unknown>, next: HttpHandler): Observable<HttpEvent<unknown>> {
     const rememberMe = this.isRememberMeUser();
     const authReq = rememberMe
-      ? req.clone({ headers: req.headers.delete('Authorization'), withCredentials: true })
+      ? req.clone({ withCredentials: true })
       : req;
 
     return next.handle(authReq).pipe(
@@ -42,11 +42,29 @@ export class AuthInterceptor implements HttpInterceptor {
       this.refreshInProgress = true;
       this.refreshDone$.next(false);
 
-      return this.http.post(`${this.config.WebApi}/User/refresh-token`, {}, { withCredentials: true }).pipe(
-        switchMap(() => {
+      return this.http.post<any>(`${this.config.WebApi}/User/refresh-token`, {}, { withCredentials: true }).pipe(
+        switchMap((res) => {
           this.refreshInProgress = false;
           this.refreshDone$.next(true);
-          return next.handle(req);
+
+          let newReq = req;
+          if (res && res.token) {
+            try {
+              const u = JSON.parse(localStorage.getItem('currentUser') || '{}');
+              u.Token = res.token;
+              localStorage.setItem('currentUser', JSON.stringify(u));
+              newReq = req.clone({
+                headers: req.headers.set('Authorization', `Bearer ${res.token}`)
+              });
+            } catch (e) {}
+          }
+
+          const isRemUser = this.isRememberMeUser();
+          if (isRemUser) {
+            newReq = newReq.clone({ withCredentials: true });
+          }
+
+          return next.handle(newReq);
         }),
         catchError(refreshErr => {
           this.refreshInProgress = false;
@@ -59,7 +77,23 @@ export class AuthInterceptor implements HttpInterceptor {
     return this.refreshDone$.pipe(
       filter(done => done),
       take(1),
-      switchMap(() => next.handle(req))
+      switchMap(() => {
+        let newReq = req;
+        try {
+          const u = JSON.parse(localStorage.getItem('currentUser') || '{}');
+          if (u && u.Token) {
+            newReq = req.clone({
+              headers: req.headers.set('Authorization', `Bearer ${u.Token}`)
+            });
+          }
+        } catch (e) {}
+
+        if (this.isRememberMeUser()) {
+          newReq = newReq.clone({ withCredentials: true });
+        }
+
+        return next.handle(newReq);
+      })
     );
   }
 

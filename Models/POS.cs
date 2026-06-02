@@ -236,6 +236,7 @@ namespace Models
         public string Id { get; set; }
         public string CustomCode { get; set; }
         public string Description { get; set; }
+        public string ShortDesc { get; set; }
         public decimal SalePrice { get; set; }
         public string ItemId { get; set; }
         public int CompanyID { get; set; }

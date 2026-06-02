@@ -18,6 +18,7 @@ export interface posItemRow {
     customCode:string;
     ItemId?:string;
     Description:string;
+    ShortDesc: string; 
     Quantity:number;
     SalePrice:number;
     Amount:number;
@@ -34,6 +35,7 @@ export interface  posItem {
     /**main primary kay of item */
     ItemId?:string;
     Description:string;
+    ShortDesc: string; 
     SalePrice?:number;
     CompanyID?:number;
     CreateUser?:number;

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Security.Claims;
@@ -119,7 +119,7 @@ namespace open_source_pos.Controllers
                 return Unauthorized(result);
 
             AuthCookieHelper.SetRememberMeCookies(Response, result.Data?.ToString(), refresh, GetAppSettings());
-            return Ok(new { message = result.Message, refreshed = true });
+            return Ok(new { message = result.Message, refreshed = true, token = result.Data?.ToString() });
         }
 
         [Authorize]
