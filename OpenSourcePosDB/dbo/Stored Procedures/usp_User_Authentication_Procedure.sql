@@ -163,7 +163,7 @@ BEGIN
        
        
      /*Lock the user if too many invalid login attempts*/  
-     if (@LockoutEnabled = 0 and (@LockoutEnd = '1900-01-01' OR @LockoutEnd is null))  
+     if (ISNULL(@LockoutEnabled, 0) = 0)  
       BEGIN  
                             if (@IsPasswordValid = 0)  
                                    BEGIN  
@@ -190,6 +190,11 @@ BEGIN
            END  
         ELSE  
          BEGIN  
+           Update Users     
+            Set AccessFailedCount = 0,  
+             LockoutEnabled = 0,  
+             LockoutEnd = '1900-01-01'  
+             Where EMAIL = @UserEmail  
            SET @IsLoginSuccessful = 1  
            SET @AttemptDescription = @AttemptDescription + ', User''s password is valid and allowed to login';  
          END  

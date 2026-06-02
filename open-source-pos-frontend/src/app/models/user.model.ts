@@ -81,7 +81,7 @@ export interface User {
     authenticationResult?: AuthenticationResult;
     UsersGeoLocation?: UsersGeoLocation;
     DeviceInfo?: any;
-    RememberUser?:  boolean | string | number;
+    RememberUser?:  boolean;
     ConfirmReplaceSession?: boolean;
     RequiresSessionConfirmation?: boolean;
     ExistingActiveSession?: ActiveSessionInfo;
