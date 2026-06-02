@@ -91,6 +91,7 @@ export class ItemComponent implements OnInit {
       this.item = {
         CustomCode:"",
         Description:"",
+        ShortDesc: "",
         Id:"0",                
       };
       
@@ -167,6 +168,7 @@ export class ItemComponent implements OnInit {
       Id: String(this.item.Id ?? this.item.ItemId ?? '0'),
       CustomCode: (this.item.CustomCode ?? '').trim(),
       Description: (this.item.Description ?? '').trim(),
+      ShortDesc: (this.item.ShortDesc ?? '').trim(),
       SalePrice: Number(this.item.SalePrice) || 0,
       CompanyID: companyId,
       CreateUser: forUpdate ? (this.item.CreateUser ?? this.currentUser?.UserID) : this.currentUser?.UserID,
@@ -209,7 +211,7 @@ export class ItemComponent implements OnInit {
           }
           this.messageService.add({severity:'success', summary: 'Successful', detail: 'Product Updated', life: 3000});
           this.productDialog = false;
-          this.item = { CustomCode: '', Description: '', Id: '0' };
+          this.item = { CustomCode: '', Description: '', ShortDesc: '', Id: '0' };
           this.items = [...this.items];
         },
         error: (error) => {
@@ -233,7 +235,7 @@ export class ItemComponent implements OnInit {
           this.items.push(payload);
           this.messageService.add({severity:'success', summary: 'Successful', detail: 'Product Created', life: 3000});
           this.productDialog = false;
-          this.item = { CustomCode: '', Description: '', Id: '0' };
+          this.item = { CustomCode: '', Description: '', ShortDesc: '', Id: '0' };
           this.items = [...this.items];
         },
         error: (error) => {

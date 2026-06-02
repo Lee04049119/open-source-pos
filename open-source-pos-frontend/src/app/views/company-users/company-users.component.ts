@@ -97,6 +97,7 @@ export class CompanyUsersComponent implements OnInit {
       this.item = {
         CustomCode:"",
         Description:"",
+        ShortDesc: "",
         Id:"0",                
       };
       

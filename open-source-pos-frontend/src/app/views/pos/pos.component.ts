@@ -37,6 +37,7 @@ export class PosComponent  implements OnInit  {
     CustomCode: "",
     ItemId: "",
     Description: "",
+    ShortDesc: "",
     SalePrice: 0
   };  
   SelectedIndexOfDtl:number = 0;  
@@ -135,6 +136,7 @@ export class PosComponent  implements OnInit  {
           SrNo:1,
           id:"1",
           Description: "",
+          ShortDesc: "",
           Amount:0,
           Quantity:1,
           SalePrice:0,
@@ -290,6 +292,7 @@ export class PosComponent  implements OnInit  {
         SrNo:lastItem.SrNo + 1,
         id:(lastItem.SrNo + 1).toString(),
         Description: "",
+        ShortDesc: "",
         Amount:0,
         Quantity:1,
         SalePrice:0,
@@ -541,6 +544,7 @@ export class PosComponent  implements OnInit  {
         id: '',
         customCode: dbDtl.CustomCode!,
         Description: dbDtl.ItemDescription!,
+        ShortDesc: "",
         Quantity: dbDtl.Quantity!,
         SalePrice: dbDtl.InvoiceRate!,
         Amount: dbDtl.InvoiceValue!,
